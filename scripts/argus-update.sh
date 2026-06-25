@@ -52,6 +52,10 @@ case "$cmd" in
       exit 1
     fi
 
+    if [ -n "${ARGUS_HA_UPSTREAM:-}" ]; then
+      wait_for_ha_from_argus 36 || true
+    fi
+
     wait_for_argus 24
     post_deploy_checks
     print_access_hint
@@ -60,6 +64,10 @@ case "$cmd" in
   build)
     echo "==> ARGUS — rebuild only"
     $COMPOSE up -d --build
+    if [ -n "${ARGUS_HA_UPSTREAM:-}" ]; then
+      wait_for_ha_from_argus 36 || true
+    fi
+
     wait_for_argus 24
     post_deploy_checks
     print_access_hint

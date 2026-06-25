@@ -30,13 +30,64 @@ preflight_bind_ip() {
 
 http_probe() {
   local url="$1"
-  if curl -sf "${url}" >/dev/null 2>&1; then
+  if curl -sf --max-time 10 "${url}" >/dev/null 2>&1; then
     return 0
   fi
-  if command -v wget >/dev/null 2>&1 && wget -qO- "${url}" >/dev/null 2>&1; then
+  if command -v wget >/dev/null 2>&1 && wget -qO- -T 10 "${url}" >/dev/null 2>&1; then
     return 0
   fi
   return 1
+}
+
+# Busybox wget in Alpine (nginx image) uses -T, not --timeout
+wget_probe_in_argus() {
+  local url="$1"
+  $COMPOSE exec -T argus wget -qO- -T 15 "${url}" >/dev/null 2>&1
+}
+
+check_ha_docker_network() {
+  if ! docker network inspect ha-argus >/dev/null 2>&1; then
+    echo "    Network ha-argus missing — start HA first: cd ~/apps/homeassistant && docker compose up -d"
+    return 1
+  fi
+  if ! docker network inspect ha-argus 2>/dev/null | grep -q '"homeassistant"'; then
+    echo "    homeassistant not on ha-argus network"
+    return 1
+  fi
+  if ! docker network inspect ha-argus 2>/dev/null | grep -q 'argus-argus-1\|"argus"'; then
+    echo "    argus container not on ha-argus network — redeploy ARGUS after HA is up"
+    return 1
+  fi
+  return 0
+}
+
+wait_for_ha_from_argus() {
+  local upstream="${ARGUS_HA_UPSTREAM:-}"
+  local max="${1:-36}"
+  local i url
+
+  [ -n "${upstream}" ] || return 0
+  url="${upstream%/}/api/"
+
+  echo "==> Waiting for Home Assistant at ${url} (up to $((max * 5))s)..."
+  check_ha_docker_network || true
+
+  for i in $(seq 1 "$max"); do
+    if wget_probe_in_argus "${url}"; then
+      echo "    Home Assistant reachable from ARGUS container."
+      return 0
+    fi
+    if [ "$i" -eq "$max" ]; then
+      echo ""
+      echo "    FAILED — ARGUS cannot reach Home Assistant (UFW is NOT the cause for Docker network)."
+      echo "    1. HA still starting?  cd ~/apps/homeassistant && docker compose logs -f homeassistant"
+      echo "    2. On host:             curl -s --max-time 5 http://127.0.0.1:8123/api/"
+      echo "    3. From ARGUS:          docker compose exec argus wget -qO- -T 15 http://homeassistant:8123/api/"
+      echo "    4. Network:             docker network inspect ha-argus"
+      return 1
+    fi
+    sleep 5
+  done
 }
 
 wait_for_argus() {
@@ -83,13 +134,11 @@ post_deploy_checks() {
     echo "==> HA proxy enabled: ${ARGUS_HA_UPSTREAM}"
     echo "    In ARGUS Settings, use HA URL: ${ARGUS_PUBLIC_URL:-http://127.0.0.1:${port}}/api/ha"
     echo "==> HA reachability from container:"
-    if $COMPOSE exec -T argus wget -qO- --timeout=8 "${ARGUS_HA_UPSTREAM}/api/" >/dev/null 2>&1; then
+    if wget_probe_in_argus "${ARGUS_HA_UPSTREAM%/}/api/"; then
       echo "    OK — container can reach Home Assistant"
     else
-      echo "    FAILED — container cannot reach ${ARGUS_HA_UPSTREAM}"
-      echo "    If HA runs on this server, set: ARGUS_HA_UPSTREAM=http://homeassistant:8123"
-      echo "    Ensure both stacks use Docker network ha-argus (see HA_SETUP.md)."
-      echo "    Test: docker compose exec argus wget -qO- --timeout=8 ${ARGUS_HA_UPSTREAM}/api/"
+      echo "    FAILED — run: docker compose exec argus wget -qO- -T 15 ${ARGUS_HA_UPSTREAM%/}/api/"
+      check_ha_docker_network || true
     fi
   else
     echo "==> HA proxy disabled — set HA URL to your Pi/LAN address in ARGUS Settings"

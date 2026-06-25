@@ -1,8 +1,11 @@
 # Generated at container start when ARGUS_HA_UPSTREAM is set.
-# Browser uses HA URL: http://YOUR_VPN_IP:8080/api/ha
+# Browser uses HA URL: http://YOUR_VPN_IP:9080/api/ha
+# resolver + variable proxy_pass = Docker DNS at request time (HA IP can change)
 
 location /api/ha/ {
-    proxy_pass ${ARGUS_HA_UPSTREAM}/;
+    resolver 127.0.0.11 valid=30s ipv6=off;
+    set $ha_upstream ${ARGUS_HA_PROXY_HOST};
+    proxy_pass http://$ha_upstream/;
     proxy_http_version 1.1;
     proxy_set_header Host ${ARGUS_HA_HOST};
     proxy_set_header X-Real-IP $remote_addr;
@@ -10,6 +13,6 @@ location /api/ha/ {
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "upgrade";
-    proxy_connect_timeout 15s;
+    proxy_connect_timeout 30s;
     proxy_read_timeout 86400;
 }
