@@ -43,7 +43,14 @@ case "$cmd" in
     fi
 
     echo "==> Rebuilding and restarting..."
-    $COMPOSE up -d --build
+    if ! $COMPOSE up -d --build; then
+      echo ""
+      echo "ERROR: docker compose failed."
+      echo "  Port in use? Edit .env → ARGUS_PORT=9080 (or another free port), then:"
+      echo "    docker compose down && argus-update build"
+      echo "  Check: sudo ss -tlnp | grep -E '8080|9080'"
+      exit 1
+    fi
 
     wait_for_argus 24
     post_deploy_checks

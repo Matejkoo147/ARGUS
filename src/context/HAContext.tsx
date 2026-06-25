@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { parseHaUsername, fetchHaUsername } from "../lib/auth";
+import { resolveHaUsername } from "../lib/auth";
 import { HomeAssistantClient } from "../lib/homeassistant";
 import type { ArgusPreferences, ConnectionStatus, HAConfig, HAEntity, SecuritySummary } from "../types";
 import {
@@ -164,8 +164,7 @@ export function HAProvider({ children }: { children: ReactNode }) {
       clientRef.current = null;
     }
 
-    const usernameFromToken = parseHaUsername(cfg.token) ?? cfg.username;
-    const fullCfg: HAConfig = { ...cfg, username: usernameFromToken ?? undefined };
+    const fullCfg: HAConfig = { ...cfg, username: cfg.username?.trim() || undefined };
 
     const client = new HomeAssistantClient(fullCfg);
     client.onConnected = () => {
@@ -195,10 +194,18 @@ export function HAProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      let username = fullCfg.username;
-      if (!username) {
-        username = (await fetchHaUsername(fullCfg.url, fullCfg.token)) ?? undefined;
+      let currentUser = null;
+      try {
+        currentUser = await client.getCurrentUser();
+      } catch {
+        /* non-fatal */
       }
+
+      let username = cfg.username?.trim() || undefined;
+      if (!username) {
+        username = (await resolveHaUsername(fullCfg.url, fullCfg.token, states, currentUser)) ?? undefined;
+      }
+
       const savedCfg: HAConfig = { ...fullCfg, username };
 
       setEntities(states);
@@ -263,14 +270,30 @@ export function HAProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (status !== "connected" || !config?.url || !config?.token || config.username) return;
-    fetchHaUsername(config.url, config.token).then((name) => {
-      if (!name) return;
+    if (status !== "connected" || !config?.url || !config?.token) return;
+    if (config.username && config.username.toLowerCase() !== "user") return;
+
+    let cancelled = false;
+    (async () => {
+      const client = clientRef.current;
+      if (!client) return;
+      let currentUser = null;
+      try {
+        currentUser = await client.getCurrentUser();
+      } catch {
+        /* ignore */
+      }
+      const name = await resolveHaUsername(config.url, config.token, entities, currentUser);
+      if (cancelled || !name) return;
       const updated = { ...config, username: name };
       setConfig(updated);
       saveConfig(updated);
-    });
-  }, [status, config]);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [status, config, entities]);
 
   useEffect(() => {
     const saved = loadConfig();

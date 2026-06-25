@@ -44,11 +44,7 @@ export function VoicePage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const pushArgusMessage = useCallback((text: string) => {
-    setMessages((prev) => [...prev, { role: "argus", text }]);
-  }, []);
-
-  const { listening, listenPhase, draft, setDraft, hint, startMic, stopMic } = useArgusMic(pushArgusMessage);
+  const { listening, listenPhase, draft, setDraft, hint, micError, startMic, stopMic } = useArgusMic();
 
   useEffect(() => {
     if (listening) {
@@ -208,19 +204,12 @@ You help with home security questions. For non-security topics you may answer br
         <div className="card voice-card">
           <div className="card-header card-header-row">
             <span><i className="bi bi-mic-fill" /> ARGUS Voice</span>
+            <span className={`voice-badge${muted ? " muted" : ""}`}>
+              <i className={`bi ${muted ? "bi-volume-mute-fill" : "bi-volume-up-fill"}`} />
+              {muted ? "VOICE: OFF" : "VOICE: ON"}
+            </span>
           </div>
           <div className="card-body voice-panel">
-            <button
-              type="button"
-              className={`voice-mute-bar${muted ? " muted" : ""}`}
-              onClick={toggleMute}
-              title={muted ? "Tap to hear spoken replies" : "Tap to mute spoken replies"}
-              aria-label={muted ? "Voice replies off" : "Voice replies on"}
-            >
-              <i className={`bi ${muted ? "bi-volume-mute-fill" : "bi-volume-up-fill"}`} />
-              <span>{muted ? "VOICE REPLY: OFF" : "VOICE REPLY: ON"}</span>
-            </button>
-
             <div className="voice-toolbar">
               <button
                 type="button"
@@ -232,9 +221,18 @@ You help with home security questions. For non-security topics you may answer br
               >
                 <i className={`bi ${listening ? "bi-mic-fill" : "bi-mic"}`} />
               </button>
+              <button
+                type="button"
+                className={`voice-aux-btn${muted ? " active" : ""}`}
+                onClick={toggleMute}
+                title={muted ? "Unmute spoken replies" : "Mute spoken replies"}
+                aria-label={muted ? "Unmute voice reply" : "Mute voice reply"}
+              >
+                <i className={`bi ${muted ? "bi-volume-mute-fill" : "bi-volume-up-fill"}`} />
+              </button>
             </div>
 
-            <p className={`voice-hint${listening ? " active" : ""}${listenPhase === "capture" ? " capture" : ""}`}>
+            <p className={`voice-hint${listening ? " active" : ""}${listenPhase === "capture" ? " capture" : ""}${micError ? " error" : ""}`}>
               {busy ? busyLabel || "Processing…" : hint}
             </p>
 
@@ -298,7 +296,7 @@ You help with home security questions. For non-security topics you may answer br
         <div className="card-header"><i className="bi bi-info-circle" /> Web mic fallback</div>
         <div className="card-body hint-box" style={{ lineHeight: 1.7 }}>
           <p>Later: ESP32 mics on Home Assistant will listen for <strong>“ARGUS, …”</strong> on your Pi. This web mic is a fallback — it fills the text box so you can review and press Send.</p>
-          <p style={{ marginTop: 6 }}>Tap the <strong>VOICE REPLY</strong> bar to mute/unmute spoken answers. Mute state is remembered on this device.</p>
+          <p style={{ marginTop: 6 }}>Use the <strong>speaker button</strong> next to the mic to mute/unmute spoken replies. Mute state is remembered on this device.</p>
         </div>
       </div>
     </>

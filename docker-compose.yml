@@ -6,7 +6,8 @@ services:
     image: argus-home-security:latest
     restart: unless-stopped
     ports:
-      - "${ARGUS_PORT:-8080}:8080"
+      # Bind only on WireGuard IP — not exposed on LAN/public (see DEPLOY.md)
+      - "${ARGUS_BIND_IP:-10.8.0.1}:${ARGUS_PORT:-9080}:8080"
     environment:
       TZ: ${TZ:-Europe/Bratislava}
       # Optional: proxy Home Assistant through ARGUS (avoids CORS). Example:

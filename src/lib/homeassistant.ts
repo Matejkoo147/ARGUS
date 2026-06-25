@@ -1,6 +1,13 @@
 import type { HAConfig, HAEntity, HALogbookEntry } from "../types";
 import { resolveHaFetchUrl, resolveHaWebSocketUrl } from "./haUrl";
 
+export interface HaCurrentUser {
+  id: string;
+  name: string;
+  is_owner: boolean;
+  is_admin: boolean;
+}
+
 let msgId = 1;
 
 export class HomeAssistantClient {
@@ -140,6 +147,10 @@ export class HomeAssistantClient {
 
   async getConfig(): Promise<Record<string, unknown>> {
     return this.call("get_config");
+  }
+
+  async getCurrentUser(): Promise<HaCurrentUser> {
+    return this.call<HaCurrentUser>("auth/current_user");
   }
 
   async callService(

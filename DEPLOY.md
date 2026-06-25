@@ -6,29 +6,37 @@ Same workflow as **resell-radar** (`rr-update` on `mato-server` at `~/apps/...`)
 
 ```
 Windows laptop (dev)          mato-server (Ubuntu)           Pi / LAN
-npm run dev :5173    ──►     Docker ARGUS :8080      ──►    Home Assistant :8123
-git push / rsync              WireGuard 10.8.0.1              (optional proxy)
+npm run dev :5173    ──►     Docker ARGUS :9080      ──►    Home Assistant :8123
+git push                      WireGuard 10.8.0.1              (optional HA proxy)
 ```
 
-- **Dev:** `npm run dev` on your laptop
-- **Prod:** Docker builds the SPA and nginx serves it on port **8080**
-- **VPN:** Open `http://10.8.0.1:8080` over WireGuard (adjust IP if yours differs)
-- **HA proxy (optional):** nginx forwards `/api/ha/` to your Pi — no CORS setup needed
+- **Dev:** `npm run dev` on your laptop (`http://localhost:5173`)
+- **Prod:** Docker + nginx serves the SPA on host port **9080** (default; configurable via `.env`)
+- **VPN:** Open `http://10.8.0.1:9080` over WireGuard (adjust IP if yours differs)
+- **HA proxy (recommended):** nginx forwards `/api/ha/` to your Pi — no CORS setup needed
 
 ---
 
 ## One-time setup on mato-server
+
+### 0. Prerequisites
+
+```bash
+# Docker + compose plugin (if not installed)
+sudo apt update
+sudo apt install -y docker.io docker-compose-v2 git curl
+sudo usermod -aG docker $USER
+# log out and back in so docker group applies
+```
 
 ### 1. Clone the project
 
 ```bash
 mkdir -p ~/apps
 cd ~/apps
-git clone <YOUR_GITHUB_OR_GIT_URL> argus
+git clone https://github.com/Matejkoo147/ARGUS.git argus
 cd argus
 ```
-
-If you do not use git yet, copy the folder once with `scp -r` from Windows, then init git later.
 
 ### 2. Configure environment
 
@@ -37,19 +45,19 @@ cp .env.example .env
 nano .env
 ```
 
-Example `.env`:
+Example `.env` for your setup:
 
 ```env
-ARGUS_PORT=8080
+ARGUS_PORT=9080
+ARGUS_BIND_IP=10.8.0.1
 TZ=Europe/Bratislava
-ARGUS_PUBLIC_URL=http://10.8.0.1:8080
-
-# Pi HA reachable from mato-server (recommended):
-ARGUS_HA_UPSTREAM=http://192.168.1.50:8123
+ARGUS_PUBLIC_URL=http://10.8.0.1:9080
+ARGUS_HA_UPSTREAM=http://192.168.x.x:8123
 ```
 
-Use your Pi’s **LAN IP** for `ARGUS_HA_UPSTREAM` (mato-server must reach it).  
-If HA runs in Docker on the same host: `http://host.docker.internal:8123` (Linux may need `extra_hosts` — use LAN IP if that fails).
+`ARGUS_BIND_IP` is the WireGuard address on mato-server. Docker listens **only** on that IP — not on your public/LAN interface.
+
+**Finding your WG IP:** `ip -4 addr show wg0` (look for `10.8.0.1/24` or similar).
 
 ### 3. Install the update command
 
@@ -58,15 +66,49 @@ chmod +x scripts/argus-update.sh scripts/lib/deploy_common.sh
 sudo ln -sf ~/apps/argus/scripts/argus-update.sh /usr/local/bin/argus-update
 ```
 
-### 4. First deploy
+### 4. Firewall — WireGuard only (recommended)
+
+Docker **bypasses UFW** for published ports, so the main protection is `ARGUS_BIND_IP=10.8.0.1` in `.env` (see above). UFW rules are an extra layer.
 
 ```bash
+# 1. Remove the broad rule if you added it earlier
+sudo ufw status numbered
+# Note the number for "9080/tcp", then:
+sudo ufw delete allow 9080/tcp
+
+# 2. Allow only on the WireGuard interface (replace wg0 if yours differs)
+sudo ufw allow in on wg0 to any port 9080 proto tcp comment 'ARGUS via WireGuard'
+
+# Optional: restrict to VPN client subnet only
+sudo ufw allow from 10.8.0.0/24 to any port 9080 proto tcp comment 'ARGUS VPN clients'
+
+sudo ufw status verbose
+```
+
+**Verify binding** after deploy:
+
+```bash
+sudo ss -tlnp | grep 9080
+# Should show 10.8.0.1:9080 — NOT 0.0.0.0:9080
+```
+
+From a machine **without** WireGuard, `http://YOUR_PUBLIC_IP:9080` should **not** connect.  
+With WireGuard connected, open `http://10.8.0.1:9080`.
+
+**Label all UFW rules with comments:** see `scripts/mato-ufw-rules.sh` — backs up, resets, and reapplies your mato-server rules with descriptions. View comments with `sudo ufw status verbose`.
+
+WireGuard clients must have a route to `10.8.0.1` (usually automatic in your WG config).
+
+### 5. First deploy
+
+```bash
+cd ~/apps/argus
 argus-update
 ```
 
-You should see: `Done. Open http://10.8.0.1:8080`
+You should see: `Done. Open http://10.8.0.1:9080`
 
-### 5. (Optional) Start on boot with systemd
+### 6. (Optional) Start on boot with systemd
 
 ```bash
 sudo tee /etc/systemd/system/argus.service << 'EOF'
@@ -78,19 +120,15 @@ Requires=docker.service
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-WorkingDirectory=/home/USER/apps/argus
+WorkingDirectory=/home/matejkoo/apps/argus
 ExecStart=/usr/bin/docker compose up -d
 ExecStop=/usr/bin/docker compose down
-User=USER
+User=matejkoo
 
 [Install]
 WantedBy=multi-user.target
 EOF
-```
 
-Replace `USER` with your Linux username, then:
-
-```bash
 sudo systemctl daemon-reload
 sudo systemctl enable argus
 sudo systemctl start argus
@@ -98,40 +136,49 @@ sudo systemctl start argus
 
 ---
 
+## Fix: “port is already allocated” (8080)
+
+Something else on mato-server already uses port 8080. ARGUS now defaults to **9080**.
+
+```bash
+cd ~/apps/argus
+nano .env
+# Set:
+#   ARGUS_PORT=9080
+#   ARGUS_PUBLIC_URL=http://10.8.0.1:9080
+
+# Stop any failed/partial ARGUS stack
+docker compose down
+
+# See what holds 8080 (optional)
+sudo ss -tlnp | grep 8080
+
+# Redeploy
+argus-update
+```
+
+To use another port (e.g. `9191`), set `ARGUS_PORT=9191` and match `ARGUS_PUBLIC_URL`.
+
+---
+
 ## Daily workflow (edit on laptop → update server)
 
-### Option A — Git (recommended, like resell-radar)
+### Git (recommended)
 
-**On laptop (once):**
+**On laptop after changes:**
 
 ```powershell
 cd "C:\Users\matej\Desktop\MV Security HA-App"
-git init
-git add .
-git commit -m "Initial ARGUS"
-git remote add origin <your-repo-url>
-git push -u origin main
-```
-
-**After each change with Cursor:**
-
-```powershell
 git add -A
 git commit -m "Describe change"
 git push
 ssh mato-server "argus-update"
 ```
 
-Or use the helper:
+Or:
 
 ```powershell
 .\scripts\argus-deploy-remote.ps1 -Server mato-server
-```
-
-### Option B — Rsync (no git)
-
-```powershell
-.\scripts\argus-deploy-remote.ps1 -Server mato-server -RsyncOnly
 ```
 
 ---
@@ -148,20 +195,32 @@ Or use the helper:
 
 ---
 
-## First login on VPN
+## First login over WireGuard
 
-1. Connect **WireGuard**
-2. Open **http://10.8.0.1:8080** (or your `ARGUS_PUBLIC_URL`)
-3. **Home Assistant URL:**
-   - With proxy: `http://10.8.0.1:8080/api/ha`
-   - Without proxy: `http://<pi-ip>:8123` + add CORS in HA `configuration.yaml`:
+1. Connect **WireGuard** on your laptop/phone
+2. Open **http://10.8.0.1:9080** (or your `ARGUS_PUBLIC_URL`)
+3. **Home Assistant URL** in ARGUS:
+   - **With proxy (recommended):** `http://10.8.0.1:9080/api/ha`
+   - **Without proxy:** `http://<pi-lan-ip>:8123` and add CORS in HA `configuration.yaml`:
      ```yaml
      http:
        cors_allowed_origins:
-         - http://10.8.0.1:8080
+         - http://10.8.0.1:9080
      ```
-4. **Token:** HA Profile → Long-lived access token
-5. **Ollama (Settings):** e.g. `http://10.0.0.1:11434` (server LAN IP from VPN)
+4. **Token:** Home Assistant → Profile → Security → Long-lived access token
+5. **Display name:** auto-detected (e.g. `matejkoo`) or set manually in Settings
+6. **Ollama (Settings):** e.g. `http://10.0.0.1:11434` (server LAN IP reachable over VPN)
+
+### Verify HA proxy from server
+
+```bash
+# Should return HTTP headers from Home Assistant
+curl -sI "$(grep ARGUS_HA_UPSTREAM .env | cut -d= -f2)"
+
+# After deploy — health + proxy
+curl -sf http://127.0.0.1:9080/health
+curl -sI http://127.0.0.1:9080/api/ha/
+```
 
 ---
 
@@ -169,10 +228,13 @@ Or use the helper:
 
 | Problem | Fix |
 |---------|-----|
-| Can’t open :8080 on VPN | `sudo ufw allow 8080`; check WireGuard routes to mato-server |
-| ARGUS loads, HA won’t connect | Check `ARGUS_HA_UPSTREAM`; test from server: `curl -I $ARGUS_HA_UPSTREAM` |
-| Changes not visible | Run `argus-update` (hard refresh browser: Ctrl+Shift+R) |
-| `connection refused` on laptop | That’s **dev** — run `npm run dev` locally; prod is on the server |
+| `Bind for …:8080 failed` | Change `ARGUS_PORT=9080` in `.env`, run `docker compose down`, then `argus-update` |
+| Can’t open :9080 on VPN | Confirm WG connected; `ip addr show wg0`; check `ss` shows `10.8.0.1:9080` |
+| ARGUS loads, HA won’t connect | Set `ARGUS_HA_UPSTREAM` to Pi LAN IP; test `curl` from server |
+| HA proxy 502 | Pi unreachable from Docker — use LAN IP, not `localhost` |
+| Changes not visible | `argus-update` on server; hard refresh browser (Ctrl+Shift+R) |
+| Mic “network error” | Chrome speech needs internet; type commands manually or use SEND |
+| Navbar shows USER | Settings → Display name → `matejkoo` → Save & Connect |
 
 ---
 
@@ -182,6 +244,6 @@ Or use the helper:
 |---|-------------|-------|
 | Path | `~/apps/resell-radar` | `~/apps/argus` |
 | Update cmd | `rr-update` | `argus-update` |
-| VPN URL | `http://10.8.0.1:3000` | `http://10.8.0.1:8080` |
+| VPN URL | `http://10.8.0.1:3000` | `http://10.8.0.1:9080` |
 | Stack | postgres, redis, workers… | Single nginx static container |
 | Data | Database volumes | Browser localStorage (HA token, settings) |

@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { ArgusLogo } from "./ArgusLogo";
+import { AlertsBell } from "./AlertsBell";
 import { useHA } from "../context/HAContext";
 import { pickWeatherSnapshot } from "../lib/homeSensors";
 
@@ -69,40 +70,60 @@ export function AppShell() {
   return (
     <div className="app-root">
       <header className={`navbar${armed ? " navbar--armed" : ""}${breach ? " navbar--breach" : ""}`}>
-        <div className="nav-brand-wrap">
-          <ArgusLogo size={38} className="nav-brand-logo" />
+        <div className="nav-left">
+          <div className="nav-logo-frame" aria-hidden>
+            <span className="nav-logo-ring" />
+            <ArgusLogo size={46} className="nav-brand-logo" />
+          </div>
+          <div className="nav-identity">
+            <div className="nav-title">ARGUS</div>
+            <div className="nav-tagline">All-Seeing Guardian</div>
+          </div>
         </div>
-        <div className="nav-brand-center">
-          <div className="nav-brand">ARGUS — ALL-SEEING GUARDIAN</div>
-          <div className="nav-brand-sub">omniscient perimeter intelligence</div>
-        </div>
-        <div className="nav-stats-center">
-          <span className="status-pill">
+
+        <div className="nav-hud">
+          <div className="nav-hud-status">
             <span className={`status-dot ${dotClass}`} />
             <span className={armed ? "glow-red" : status === "connected" ? "glow-green" : ""}>
               {statusLabel}
             </span>
-          </span>
-          {armed && <span className="badge-mode badge-armed">SECURE MODE</span>}
-          {!armed && status === "connected" && <span className="badge-mode badge-safe">DISARMED</span>}
-          <span className="stat-chip">
-            Cams <strong>{summary.cameraCount}</strong>
-          </span>
-          <span className="stat-chip">
-            Motion <strong className={summary.motionActive ? "glow-red" : ""}>{summary.motionActive}</strong>
-          </span>
-          <span className="stat-chip">
-            Doors <strong className={summary.doorOpen ? "glow-red" : ""}>{summary.doorOpen}</strong>
-          </span>
-          {weather && (
-            <span className="stat-chip weather-chip" title={weather.label}>
-              <i className={`bi ${weather.icon}`} />
-              {weather.temp && <strong>{weather.temp}</strong>}
-              {weather.humidity && <span className="weather-humidity">{weather.humidity}</span>}
+          </div>
+
+          <span className="nav-hud-sep" aria-hidden />
+
+          {armed ? (
+            <span className="badge-mode badge-armed">SECURE</span>
+          ) : status === "connected" ? (
+            <span className="badge-mode badge-safe">DISARMED</span>
+          ) : null}
+
+          <span className="nav-hud-sep" aria-hidden />
+
+          <div className="nav-metrics">
+            <span className="nav-metric" title="Cameras">
+              <i className="bi bi-camera-video" />
+              <strong>{summary.cameraCount}</strong>
             </span>
-          )}
+            <span className="nav-metric" title="Active motion">
+              <i className="bi bi-broadcast" />
+              <strong className={summary.motionActive ? "glow-red" : ""}>{summary.motionActive}</strong>
+            </span>
+            <span className="nav-metric" title="Open doors/windows">
+              <i className="bi bi-door-open" />
+              <strong className={summary.doorOpen ? "glow-red" : ""}>{summary.doorOpen}</strong>
+            </span>
+            {weather && (
+              <span className="nav-metric nav-metric--weather" title={weather.label}>
+                <i className={`bi ${weather.icon}`} />
+                {weather.temp && <strong>{weather.temp}</strong>}
+                {weather.humidity && <span className="weather-humidity">{weather.humidity}</span>}
+              </span>
+            )}
+          </div>
         </div>
-        <div className="nav-right-cluster">
+
+        <div className="nav-actions">
+          <AlertsBell />
           <button
             type="button"
             className="btn-user-settings"

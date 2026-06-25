@@ -8,6 +8,7 @@ export function SettingsPage() {
   const { config, connect, disconnect, status, refreshStates, entities, preferences, setDashboardCameras } = useHA();
   const [url, setUrl] = useState(config?.url ?? "http://localhost:8123");
   const [token, setToken] = useState(config?.token ?? "");
+  const [displayName, setDisplayName] = useState(config?.username ?? "");
   const [rememberSession, setRememberSession] = useState(config?.rememberSession ?? false);
   const [saved, setSaved] = useState(false);
 
@@ -31,8 +32,18 @@ export function SettingsPage() {
     }
   }, []);
 
+  useEffect(() => {
+    if (config?.username) setDisplayName(config.username);
+  }, [config?.username]);
+
   const handleSaveHa = async () => {
-    await connect({ url: url.trim(), token: token.trim(), rememberSession });
+    const trimmedName = displayName.trim();
+    await connect({
+      url: url.trim(),
+      token: token.trim(),
+      rememberSession,
+      username: trimmedName || undefined,
+    });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -75,6 +86,19 @@ export function SettingsPage() {
                 {status.toUpperCase()}
                 {config?.username && ` · ${config.username}`}
               </div>
+            </div>
+            <div className="field">
+              <label htmlFor="set-display-name">Display name</label>
+              <input
+                id="set-display-name"
+                className="cyber-input"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="Auto-detected from Home Assistant (e.g. matejkoo)"
+              />
+              <p className="field-hint" style={{ marginTop: 6, fontSize: "0.72rem", opacity: 0.75 }}>
+                Shown in the top bar. Leave blank to detect from your HA account.
+              </p>
             </div>
             <div className="field">
               <label htmlFor="set-url">URL</label>

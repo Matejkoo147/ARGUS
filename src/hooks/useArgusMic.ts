@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 const SILENCE_MS = 5000;
 const WAKE_RE = /\bargus\b/i;
+const NETWORK_RETRY_MS = 2500;
+const MAX_NETWORK_RETRIES = 2;
 
 export type ListenPhase = "idle" | "wake" | "capture";
 
@@ -14,6 +16,7 @@ function extractAfterWake(full: string): string | null {
 export function useArgusMic(onError?: (msg: string) => void) {
   const [listenPhase, setListenPhase] = useState<ListenPhase>("idle");
   const [draft, setDraft] = useState("");
+  const [micError, setMicError] = useState<string | null>(null);
 
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const wantListenRef = useRef(false);
@@ -21,6 +24,19 @@ export function useArgusMic(onError?: (msg: string) => void) {
   const stoppingRef = useRef(false);
   const sessionTextRef = useRef("");
   const wakeFoundRef = useRef(false);
+  const networkRetriesRef = useRef(0);
+  const lastErrorAtRef = useRef(0);
+
+  const reportError = useCallback(
+    (msg: string) => {
+      const now = Date.now();
+      if (now - lastErrorAtRef.current < 8000) return;
+      lastErrorAtRef.current = now;
+      setMicError(msg);
+      onError?.(msg);
+    },
+    [onError],
+  );
 
   const clearSilenceTimer = useCallback(() => {
     if (silenceTimerRef.current) {
@@ -32,6 +48,7 @@ export function useArgusMic(onError?: (msg: string) => void) {
   const finalize = useCallback(() => {
     wantListenRef.current = false;
     stoppingRef.current = true;
+    networkRetriesRef.current = 0;
     clearSilenceTimer();
     try {
       recognitionRef.current?.stop();
@@ -49,6 +66,7 @@ export function useArgusMic(onError?: (msg: string) => void) {
   }, [clearSilenceTimer, finalize]);
 
   const stopMic = useCallback(() => {
+    setMicError(null);
     finalize();
   }, [finalize]);
 
@@ -68,7 +86,7 @@ export function useArgusMic(onError?: (msg: string) => void) {
   const startMic = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
-      onError?.("Speech recognition not supported. Use Chrome or Edge.");
+      reportError("Speech recognition not supported. Use Chrome or Edge.");
       return;
     }
 
@@ -77,20 +95,29 @@ export function useArgusMic(onError?: (msg: string) => void) {
       return;
     }
 
+    if (!window.isSecureContext && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
+      reportError("Microphone requires HTTPS or localhost.");
+      return;
+    }
+
     wantListenRef.current = true;
     stoppingRef.current = false;
+    networkRetriesRef.current = 0;
     sessionTextRef.current = "";
     wakeFoundRef.current = false;
+    setMicError(null);
     setDraft("");
     setListenPhase("wake");
 
     const rec = new SR();
-    rec.lang = "en-US";
+    const lang = navigator.language || "en-US";
+    rec.lang = lang;
     rec.continuous = true;
     rec.interimResults = true;
     rec.maxAlternatives = 1;
 
     rec.onstart = () => {
+      networkRetriesRef.current = 0;
       setListenPhase("wake");
       resetSilenceTimer();
     };
@@ -98,6 +125,7 @@ export function useArgusMic(onError?: (msg: string) => void) {
     rec.onresult = (ev) => {
       if (!wantListenRef.current) return;
       resetSilenceTimer();
+      setMicError(null);
 
       let segment = "";
       for (let i = ev.resultIndex; i < ev.results.length; i++) {
@@ -125,11 +153,24 @@ export function useArgusMic(onError?: (msg: string) => void) {
       if (err === "not-allowed") {
         wantListenRef.current = false;
         setListenPhase("idle");
-        onError?.("Microphone blocked. Allow mic access for this site in browser settings.");
+        reportError("Microphone blocked. Allow mic access for this site in browser settings.");
         return;
       }
       if (err === "network") {
-        onError?.("Speech network error. Check connection or try again.");
+        networkRetriesRef.current += 1;
+        if (networkRetriesRef.current > MAX_NETWORK_RETRIES) {
+          wantListenRef.current = false;
+          setListenPhase("idle");
+          reportError(
+            "Voice recognition needs internet (Chrome uses Google speech servers). Check your connection, disable VPN/ad-block, or type your command below.",
+          );
+        }
+        return;
+      }
+      if (err === "service-not-allowed") {
+        wantListenRef.current = false;
+        setListenPhase("idle");
+        reportError("Speech service not available in this browser.");
       }
     };
 
@@ -139,18 +180,19 @@ export function useArgusMic(onError?: (msg: string) => void) {
         setListenPhase("idle");
         return;
       }
-      if (wantListenRef.current) {
-        window.setTimeout(() => {
-          if (!wantListenRef.current) return;
-          try {
-            rec.start();
-          } catch {
-            finalize();
-          }
-        }, 120);
-      } else {
+      if (!wantListenRef.current) {
         setListenPhase("idle");
+        return;
       }
+      const delay = networkRetriesRef.current > 0 ? NETWORK_RETRY_MS : 120;
+      window.setTimeout(() => {
+        if (!wantListenRef.current) return;
+        try {
+          rec.start();
+        } catch {
+          finalize();
+        }
+      }, delay);
     };
 
     recognitionRef.current = rec;
@@ -159,18 +201,20 @@ export function useArgusMic(onError?: (msg: string) => void) {
     } catch {
       wantListenRef.current = false;
       setListenPhase("idle");
-      onError?.("Could not start microphone. Try again.");
+      reportError("Could not start microphone. Try again.");
     }
-  }, [listenPhase, stopMic, resetSilenceTimer, finalize, onError]);
+  }, [listenPhase, stopMic, resetSilenceTimer, finalize, reportError]);
 
   const listening = listenPhase !== "idle";
 
   const hint =
-    listenPhase === "wake"
-      ? "Listening… say “ARGUS”, then your command"
-      : listenPhase === "capture"
-        ? "Capturing… stops after 5s silence · tap mic to finish early"
-        : "Tap mic · say “ARGUS, status” · review · Send";
+    micError
+      ? micError
+      : listenPhase === "wake"
+        ? "Listening… say “ARGUS”, then your command"
+        : listenPhase === "capture"
+          ? "Capturing… stops after 5s silence · tap mic to finish early"
+          : "Tap mic · say “ARGUS, status” · review · Send";
 
   return {
     listening,
@@ -178,6 +222,7 @@ export function useArgusMic(onError?: (msg: string) => void) {
     draft,
     setDraft,
     hint,
+    micError,
     startMic,
     stopMic,
   };

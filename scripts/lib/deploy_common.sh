@@ -3,12 +3,13 @@
 
 wait_for_argus() {
   local max_attempts="${1:-24}"
-  local port="${ARGUS_PORT:-8080}"
+  local port="${ARGUS_PORT:-9080}"
+  local host="${ARGUS_BIND_IP:-127.0.0.1}"
   local i
 
-  echo "==> Waiting for ARGUS on port ${port} (up to $((max_attempts * 5))s)..."
+  echo "==> Waiting for ARGUS on ${host}:${port} (up to $((max_attempts * 5))s)..."
   for i in $(seq 1 "$max_attempts"); do
-    if curl -sf "http://127.0.0.1:${port}/health" >/dev/null 2>&1; then
+    if curl -sf "http://${host}:${port}/health" >/dev/null 2>&1; then
       echo "    ARGUS healthy."
       return 0
     fi
@@ -22,10 +23,11 @@ wait_for_argus() {
 }
 
 post_deploy_checks() {
-  local port="${ARGUS_PORT:-8080}"
+  local port="${ARGUS_PORT:-9080}"
+  local host="${ARGUS_BIND_IP:-127.0.0.1}"
 
   echo "==> Health:"
-  curl -sf "http://127.0.0.1:${port}/health" && echo || echo "    (health check failed)"
+  curl -sf "http://${host}:${port}/health" && echo || echo "    (health check failed)"
 
   echo "==> Container status:"
   $COMPOSE ps
@@ -40,7 +42,7 @@ post_deploy_checks() {
 
 print_access_hint() {
   local url port
-  port="${ARGUS_PORT:-8080}"
+  port="${ARGUS_PORT:-9080}"
   url="${ARGUS_PUBLIC_URL:-http://10.8.0.1:${port}}"
 
   echo ""
