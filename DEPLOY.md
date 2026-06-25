@@ -5,15 +5,18 @@ Same workflow as **resell-radar** (`rr-update` on `mato-server` at `~/apps/...`)
 ## Architecture
 
 ```
-Windows laptop (dev)          mato-server (Ubuntu)           Pi / LAN
-npm run dev :5173    ──►     Docker ARGUS :9080      ──►    Home Assistant :8123
-git push                      WireGuard 10.8.0.1              (optional HA proxy)
+Windows laptop (dev)          mato-server (Ubuntu)
+npm run dev :5173    ──►     ARGUS :9080 (WireGuard 10.8.0.1)
+git push                      Home Assistant :8123 (same host, Docker)
+                                    ▲
+                                    └── ARGUS proxies /api/ha/
 ```
 
 - **Dev:** `npm run dev` on your laptop (`http://localhost:5173`)
 - **Prod:** Docker + nginx serves the SPA on host port **9080** (default; configurable via `.env`)
 - **VPN:** Open `http://10.8.0.1:9080` over WireGuard (adjust IP if yours differs)
-- **HA proxy (recommended):** nginx forwards `/api/ha/` to your Pi — no CORS setup needed
+- **Home Assistant on mato-server:** see **[HA_SETUP.md](HA_SETUP.md)** (install HA + connect ARGUS)
+- **HA proxy:** nginx forwards `/api/ha/` to HA on the same server — no CORS setup needed
 
 ---
 
@@ -52,7 +55,7 @@ ARGUS_PORT=9080
 ARGUS_BIND_IP=10.8.0.1
 TZ=Europe/Bratislava
 ARGUS_PUBLIC_URL=http://10.8.0.1:9080
-ARGUS_HA_UPSTREAM=http://192.168.x.x:8123
+ARGUS_HA_UPSTREAM=http://host.docker.internal:8123
 ```
 
 `ARGUS_BIND_IP` is the WireGuard address on mato-server. Docker listens **only** on that IP — not on your public/LAN interface.

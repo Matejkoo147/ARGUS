@@ -51,6 +51,8 @@ Serve the `dist/` folder with nginx, Caddy, or the HA **nginx** add-on.
 
 **Production on Ubuntu (mato-server + WireGuard):** see **[DEPLOY.md](./DEPLOY.md)** — Docker + `argus-update` (same pattern as resell-radar `rr-update`).
 
+**Home Assistant on mato-server:** see **[HA_SETUP.md](./HA_SETUP.md)** — install HA next to ARGUS and fix the login/proxy URL.
+
 Example nginx on the Pi:
 
 ```nginx
