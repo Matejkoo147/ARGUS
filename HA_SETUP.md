@@ -270,6 +270,7 @@ If you already used HA in Docker on Windows with a `config` folder:
 | `VERIFYING IDENTITY...` forever | Run container test (Part 2 step 2) |
 | HA UI won’t open | `docker compose ps` in `~/apps/homeassistant`; wait 5 min on first boot |
 | ARGUS works, no entities | Add integrations in HA first; ARGUS only displays what HA has |
+| `<!DOCTYPE` / HTML instead of JSON | Nginx proxy path bug — `git pull && ./scripts/argus-update.sh`; run `./scripts/check-ha-link.sh` |
 | HTTP 400 on login | Add `trusted_proxies` to HA `configuration.yaml` (see HA_SETUP §5b); redeploy ARGUS; create a **new** token |
 | Bluetooth / `hci0` errors in logs | Harmless for web UI. For BLE devices, add `cap_add: NET_ADMIN, NET_RAW` to compose (see `deploy/homeassistant/docker-compose.yml`) and `docker compose up -d --force-recreate` |
 

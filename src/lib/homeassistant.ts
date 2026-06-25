@@ -210,6 +210,14 @@ export async function testConnection(config: HAConfig): Promise<{ ok: boolean; m
     const res = await fetch(resolveHaFetchUrl(config.url, "/api/"), {
       headers: { Authorization: `Bearer ${config.token}` },
     });
+    const contentType = res.headers.get("content-type") ?? "";
+    if (!contentType.includes("application/json")) {
+      return {
+        ok: false,
+        message:
+          "HA proxy returned HTML instead of JSON — run git pull && ./scripts/argus-update.sh on the server, then try again",
+      };
+    }
     if (!res.ok) {
       if (res.status === 401) {
         return { ok: false, message: "HTTP 401: invalid or expired token — create a new one in HA Profile → Security" };
@@ -218,7 +226,7 @@ export async function testConnection(config: HAConfig): Promise<{ ok: boolean; m
         return {
           ok: false,
           message:
-            "HTTP 400: bad request via proxy — redeploy ARGUS (git pull + argus-update), then create a fresh HA token and paste with no spaces",
+            "HTTP 400: bad request via proxy — add trusted_proxies to HA configuration.yaml, redeploy ARGUS, then create a fresh token",
         };
       }
       return { ok: false, message: `HTTP ${res.status}: check URL and token` };

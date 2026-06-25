@@ -33,5 +33,19 @@ else
 fi
 
 echo ""
+echo "=== ARGUS nginx /api/ha proxy (401 without token = OK) ==="
+out=$(docker compose exec -T argus wget -S -O /dev/null -T 15 http://127.0.0.1:8080/api/ha/api/ 2>&1 || true)
+if echo "$out" | grep -qE 'HTTP/1\.[01] (200|401)'; then
+  if echo "$out" | grep -qi 'content-type:.*text/html'; then
+    echo "FAILED — proxy returned HTML (path rewrite broken); git pull && ./scripts/argus-update.sh"
+  else
+    echo "OK — /api/ha proxy reaches Home Assistant"
+  fi
+else
+  echo "FAILED"
+  echo "$out" | tail -8
+fi
+
+echo ""
 echo "=== ARGUS .env HA upstream ==="
 grep ARGUS_HA_UPSTREAM "${HOME}/apps/argus/.env" 2>/dev/null || echo "(no .env)"
