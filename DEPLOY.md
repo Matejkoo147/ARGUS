@@ -230,8 +230,7 @@ curl -sI http://127.0.0.1:9080/api/ha/
 |---------|-----|
 | `Bind for …:8080 failed` | Change `ARGUS_PORT=9080` in `.env`, run `docker compose down`, then `argus-update` |
 | Can’t open :9080 on VPN | Confirm WG connected; `ip addr show wg0`; check `ss` shows `10.8.0.1:9080` |
-| ARGUS loads, HA won’t connect | Set `ARGUS_HA_UPSTREAM` to Pi LAN IP; test `curl` from server |
-| HA proxy 502 | Pi unreachable from Docker — use LAN IP, not `localhost` |
+| ARGUS loads, HA won’t connect / 504 timeout | Container can’t reach `ARGUS_HA_UPSTREAM`. HA on **same server**: `http://host.docker.internal:8123`. HA on **Pi**: use Pi LAN IP. HA only on **your laptop** won’t work — HA must run on LAN reachable from mato-server. Test: `docker compose exec argus wget -qO- --timeout=8 $ARGUS_HA_UPSTREAM/api/` |
 | Changes not visible | `argus-update` on server; hard refresh browser (Ctrl+Shift+R) |
 | Mic “network error” | Chrome speech needs internet; type commands manually or use SEND |
 | Navbar shows USER | Settings → Display name → `matejkoo` → Save & Connect |

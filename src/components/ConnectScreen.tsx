@@ -8,10 +8,14 @@ interface ConnectScreenProps {
   error?: string | null;
 }
 
+function defaultHaUrl(): string {
+  if (import.meta.env.DEV) return "http://localhost:8123";
+  if (typeof window !== "undefined") return `${window.location.origin}/api/ha`;
+  return "http://10.8.0.1:9080/api/ha";
+}
+
 export function ConnectScreen({ onConnect, error }: ConnectScreenProps) {
-  const [url, setUrl] = useState(
-    import.meta.env.DEV ? "http://localhost:8123" : "http://homeassistant.local:8123"
-  );
+  const [url, setUrl] = useState(defaultHaUrl);
   const [token, setToken] = useState("");
   const [rememberSession, setRememberSession] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -63,7 +67,7 @@ export function ConnectScreen({ onConnect, error }: ConnectScreenProps) {
             className="cyber-input"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder="http://localhost:8123"
+            placeholder="http://10.8.0.1:9080/api/ha"
             required
           />
         </div>

@@ -82,6 +82,15 @@ post_deploy_checks() {
   if [ -n "${ARGUS_HA_UPSTREAM:-}" ]; then
     echo "==> HA proxy enabled: ${ARGUS_HA_UPSTREAM}"
     echo "    In ARGUS Settings, use HA URL: ${ARGUS_PUBLIC_URL:-http://127.0.0.1:${port}}/api/ha"
+    echo "==> HA reachability from container:"
+    if $COMPOSE exec -T argus wget -qO- --timeout=8 "${ARGUS_HA_UPSTREAM}/api/" >/dev/null 2>&1; then
+      echo "    OK — container can reach Home Assistant"
+    else
+      echo "    FAILED — container cannot reach ${ARGUS_HA_UPSTREAM}"
+      echo "    If HA runs on this server, set: ARGUS_HA_UPSTREAM=http://host.docker.internal:8123"
+      echo "    If HA is on a Pi, use the Pi LAN IP and ensure port 8123 is open."
+      echo "    Test: docker compose exec argus wget -qO- --timeout=8 ${ARGUS_HA_UPSTREAM}/api/"
+    fi
   else
     echo "==> HA proxy disabled — set HA URL to your Pi/LAN address in ARGUS Settings"
   fi
