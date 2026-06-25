@@ -246,6 +246,7 @@ If you already used HA in Docker on Windows with a `config` folder:
 | HA UI won’t open | `docker compose ps` in `~/apps/homeassistant`; wait 5 min on first boot |
 | ARGUS works, no entities | Add integrations in HA first; ARGUS only displays what HA has |
 | Token rejected | Create new token in HA profile; old token may be revoked |
+| Bluetooth / `hci0` errors in logs | Harmless for web UI. For BLE devices, add `cap_add: NET_ADMIN, NET_RAW` to compose (see `deploy/homeassistant/docker-compose.yml`) and `docker compose up -d --force-recreate` |
 
 ---
 

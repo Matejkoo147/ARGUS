@@ -6,5 +6,9 @@ services:
       - ./config:/config
       - /etc/localtime:/etc/localtime:ro
     restart: unless-stopped
-    # Host network: best for device discovery (Zigbee, ESP, mDNS). Listens on :8123 on the server.
+    # Host network: device discovery (Zigbee, ESP, mDNS). Listens on :8123 on the server.
     network_mode: host
+    # Optional — only if you use Bluetooth/BLE devices (silences hci0 errors in logs):
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
