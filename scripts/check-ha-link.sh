@@ -18,8 +18,13 @@ else
 fi
 
 echo ""
-echo "=== HA on host :8123 ==="
-curl -sf --max-time 5 http://127.0.0.1:8123/api/ && echo "OK" || echo "FAILED (HA may still be starting)"
+echo "=== HA on host :8123 (401 without token = OK) ==="
+ha_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://127.0.0.1:8123/api/ || echo "000")
+if [ "$ha_code" = "200" ] || [ "$ha_code" = "401" ]; then
+  echo "OK — HA responding (HTTP ${ha_code})"
+else
+  echo "FAILED (HTTP ${ha_code})"
+fi
 
 echo ""
 echo "=== HA from ARGUS container (401 without token = OK) ==="
