@@ -39,10 +39,16 @@ http_probe() {
   return 1
 }
 
-# Busybox wget in Alpine (nginx image) uses -T, not --timeout
+# Busybox wget in Alpine (nginx image) uses -T, not --timeout.
+# HA /api/ returns 401 without a token — that still means HA is reachable.
 wget_probe_in_argus() {
   local url="$1"
-  $COMPOSE exec -T argus wget -qO- -T 15 "${url}" >/dev/null 2>&1
+  local out
+  out=$($COMPOSE exec -T argus wget -S -O /dev/null -T 15 "${url}" 2>&1 || true)
+  if echo "$out" | grep -qE 'HTTP/1\.[01] (200|401)'; then
+    return 0
+  fi
+  return 1
 }
 
 check_ha_docker_network() {

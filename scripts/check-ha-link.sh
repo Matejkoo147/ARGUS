@@ -22,9 +22,15 @@ echo "=== HA on host :8123 ==="
 curl -sf --max-time 5 http://127.0.0.1:8123/api/ && echo "OK" || echo "FAILED (HA may still be starting)"
 
 echo ""
-echo "=== HA from ARGUS container ==="
+echo "=== HA from ARGUS container (401 without token = OK) ==="
 cd "${HOME}/apps/argus"
-docker compose exec -T argus wget -qO- -T 15 http://homeassistant:8123/api/ && echo "" && echo "OK" || echo "FAILED"
+out=$(docker compose exec -T argus wget -S -O /dev/null -T 15 http://homeassistant:8123/api/ 2>&1 || true)
+if echo "$out" | grep -qE 'HTTP/1\.[01] (200|401)'; then
+  echo "OK — Home Assistant reachable"
+else
+  echo "FAILED"
+  echo "$out" | tail -5
+fi
 
 echo ""
 echo "=== ARGUS .env HA upstream ==="
