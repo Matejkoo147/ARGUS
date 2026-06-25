@@ -7,8 +7,9 @@ COPY . .
 RUN npm run build
 
 FROM nginx:1.27-alpine
+RUN mkdir -p /etc/nginx/argus /etc/nginx/argus-templates
 COPY deploy/nginx/default.conf /etc/nginx/conf.d/default.conf
-COPY deploy/nginx/ha-proxy.conf.template /etc/nginx/templates/ha-proxy.conf.template
+COPY deploy/nginx/ha-proxy.conf.template /etc/nginx/argus-templates/ha-proxy.conf.template
 COPY deploy/nginx/docker-entrypoint.sh /docker-entrypoint.d/40-argus-ha-proxy.sh
 RUN chmod +x /docker-entrypoint.d/40-argus-ha-proxy.sh
 COPY --from=build /app/dist /usr/share/nginx/html
