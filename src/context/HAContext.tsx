@@ -263,6 +263,16 @@ export function HAProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (status !== "connected" || !config?.url || !config?.token || config.username) return;
+    fetchHaUsername(config.url, config.token).then((name) => {
+      if (!name) return;
+      const updated = { ...config, username: name };
+      setConfig(updated);
+      saveConfig(updated);
+    });
+  }, [status, config]);
+
+  useEffect(() => {
     const saved = loadConfig();
     if (saved?.url && saved?.token) {
       connect(saved).catch(() => undefined);
