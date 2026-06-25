@@ -6,7 +6,7 @@ TEMPLATE="/etc/nginx/argus-templates/ha-proxy.conf.template"
 
 if [ -n "${ARGUS_HA_UPSTREAM:-}" ]; then
   export ARGUS_HA_HOST
-  ARGUS_HA_HOST="$(echo "${ARGUS_HA_UPSTREAM}" | sed -e 's|https\?://||' -e 's|/.*||')"
+  ARGUS_HA_HOST="$(echo "${ARGUS_HA_UPSTREAM}" | sed -e 's|https\?://||' -e 's|/.*||' -e 's|:.*||')"
   echo "ARGUS: enabling HA proxy -> ${ARGUS_HA_UPSTREAM} (Host: ${ARGUS_HA_HOST})"
   envsubst '${ARGUS_HA_UPSTREAM} ${ARGUS_HA_HOST}' < "${TEMPLATE}" > "${OUT}"
 else

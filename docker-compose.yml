@@ -11,11 +11,18 @@ services:
     environment:
       TZ: ${TZ:-Europe/Bratislava}
       ARGUS_HA_UPSTREAM: ${ARGUS_HA_UPSTREAM:-}
+    networks:
+      - ha-argus
     extra_hosts:
-      # Reach HA on the Docker host (Linux). Use in .env: ARGUS_HA_UPSTREAM=http://host.docker.internal:8123
+      # Fallback if HA runs on host network instead of ha-argus network
       - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/"]
       interval: 30s
       timeout: 5s
       retries: 3
+
+networks:
+  ha-argus:
+    external: true
+    name: ha-argus

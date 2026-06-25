@@ -6,9 +6,15 @@ services:
       - ./config:/config
       - /etc/localtime:/etc/localtime:ro
     restart: unless-stopped
-    # Host network: device discovery (Zigbee, ESP, mDNS). Listens on :8123 on the server.
-    network_mode: host
-    # Optional — only if you use Bluetooth/BLE devices (silences hci0 errors in logs):
+    ports:
+      # HA web UI on the server (LAN / VPN)
+      - "8123:8123"
+    networks:
+      - ha-argus
     cap_add:
       - NET_ADMIN
       - NET_RAW
+
+networks:
+  ha-argus:
+    name: ha-argus

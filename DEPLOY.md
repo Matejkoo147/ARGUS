@@ -55,7 +55,7 @@ ARGUS_PORT=9080
 ARGUS_BIND_IP=10.8.0.1
 TZ=Europe/Bratislava
 ARGUS_PUBLIC_URL=http://10.8.0.1:9080
-ARGUS_HA_UPSTREAM=http://host.docker.internal:8123
+ARGUS_HA_UPSTREAM=http://homeassistant:8123
 ```
 
 `ARGUS_BIND_IP` is the WireGuard address on mato-server. Docker listens **only** on that IP — not on your public/LAN interface.

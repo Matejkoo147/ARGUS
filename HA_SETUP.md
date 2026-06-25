@@ -134,7 +134,7 @@ ARGUS_BIND_IP=10.8.0.1
 ARGUS_PUBLIC_URL=http://10.8.0.1:9080
 TZ=Europe/Bratislava
 
-ARGUS_HA_UPSTREAM=http://host.docker.internal:8123
+ARGUS_HA_UPSTREAM=http://homeassistant:8123
 ```
 
 Save (`Ctrl+O`, Enter, `Ctrl+X`).
@@ -241,7 +241,7 @@ If you already used HA in Docker on Windows with a `config` folder:
 
 | Problem | Fix |
 |---------|-----|
-| `504` / `upstream timed out` on login | `.env` must use `host.docker.internal`, not LAN IP |
+| `504` / `upstream timed out` on login | Use `ARGUS_HA_UPSTREAM=http://homeassistant:8123` and shared `ha-argus` network. Recreate HA without `network_mode: host`. |
 | `VERIFYING IDENTITY...` forever | Run container test (Part 2 step 2) |
 | HA UI won’t open | `docker compose ps` in `~/apps/homeassistant`; wait 5 min on first boot |
 | ARGUS works, no entities | Add integrations in HA first; ARGUS only displays what HA has |
