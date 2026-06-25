@@ -1,0 +1,19 @@
+services:
+  argus:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: argus-home-security:latest
+    restart: unless-stopped
+    ports:
+      - "${ARGUS_PORT:-8080}:8080"
+    environment:
+      TZ: ${TZ:-Europe/Bratislava}
+      # Optional: proxy Home Assistant through ARGUS (avoids CORS). Example:
+      # ARGUS_HA_UPSTREAM=http://192.168.1.50:8123
+      ARGUS_HA_UPSTREAM: ${ARGUS_HA_UPSTREAM:-}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
