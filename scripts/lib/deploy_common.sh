@@ -11,6 +11,7 @@ git_sync_deploy() {
     git reset --hard "HEAD"
   fi
   git reset --hard "origin/${branch}"
+  chmod +x scripts/argus-update.sh scripts/lib/deploy_common.sh scripts/mato-ufw-rules.sh 2>/dev/null || true
 }
 
 wait_for_argus() {
