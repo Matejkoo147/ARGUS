@@ -112,10 +112,10 @@ Updates later: `ha-update`
 
 ## Part 2 — Connect ARGUS to HA on the same server
 
-ARGUS runs in Docker. HA uses **host network** on port **8123**. From inside the ARGUS container, reach HA via:
+ARGUS runs in Docker. HA uses **host network** on port **8123**. Use the **shared Docker network** — in `.env`:
 
 ```
-http://host.docker.internal:8123
+ARGUS_HA_UPSTREAM=http://homeassistant:8123
 ```
 
 **Do not** use `192.168.0.104` in `.env` — Docker often cannot reach the host’s LAN IP from inside a container (that caused your 504 timeout).
@@ -163,7 +163,7 @@ curl -s --max-time 5 http://127.0.0.1:8123/api/
 
 # Test from ARGUS container
 cd ~/apps/argus
-docker compose exec argus wget -qO- --timeout=8 http://host.docker.internal:8123/api/
+docker compose exec argus wget -qO- --timeout=8 http://homeassistant:8123/api/
 ```
 
 ### 3. Log in to ARGUS (laptop, WireGuard on)
