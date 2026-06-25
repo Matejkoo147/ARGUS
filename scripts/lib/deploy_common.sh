@@ -1,6 +1,18 @@
 #!/usr/bin/env bash
 # Shared helpers for argus-update (expects COMPOSE to be set by caller)
 
+# Deploy tree should match GitHub — discard accidental server-side edits before pull.
+git_sync_deploy() {
+  local branch
+  branch="$(git rev-parse --abbrev-ref HEAD)"
+  git fetch origin
+  if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
+    echo "    Local edits on server — resetting tracked files to match origin/${branch}..."
+    git reset --hard "HEAD"
+  fi
+  git reset --hard "origin/${branch}"
+}
+
 wait_for_argus() {
   local max_attempts="${1:-24}"
   local port="${ARGUS_PORT:-9080}"

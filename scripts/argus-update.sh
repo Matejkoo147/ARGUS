@@ -37,7 +37,7 @@ case "$cmd" in
     echo "==> ARGUS — routine update"
     if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
       echo "==> Pulling latest code..."
-      git pull
+      git_sync_deploy
     else
       echo "==> Not a git repo — skipping pull (use git clone or rsync from your laptop)"
     fi
