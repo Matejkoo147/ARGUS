@@ -81,12 +81,16 @@ case "$cmd" in
     $COMPOSE ps
     ;;
 
+  check)
+    bash "$SCRIPT_DIR/check-ha-link.sh"
+    ;;
+
   stop)
     $COMPOSE down
     ;;
 
   *)
-    echo "Usage: argus-update [update|build|logs|ps|stop]"
+    echo "Usage: argus-update [update|build|logs|ps|check|stop]"
     exit 1
     ;;
 esac

@@ -11,7 +11,7 @@ git_sync_deploy() {
     git reset --hard "HEAD"
   fi
   git reset --hard "origin/${branch}"
-  chmod +x scripts/argus-update.sh scripts/lib/deploy_common.sh scripts/mato-ufw-rules.sh 2>/dev/null || true
+  chmod +x scripts/argus-update.sh scripts/lib/deploy_common.sh scripts/mato-ufw-rules.sh scripts/check-ha-link.sh scripts/ha-update.sh 2>/dev/null || true
 }
 
 preflight_bind_ip() {
@@ -48,6 +48,27 @@ wget_probe_in_argus() {
   if echo "$out" | grep -qE 'HTTP/1\.[01] (200|401)'; then
     return 0
   fi
+  return 1
+}
+
+check_ha_proxy_from_argus() {
+  local out
+  out=$($COMPOSE exec -T argus wget -S -O /dev/null -T 15 http://127.0.0.1:8080/api/ha/api/ 2>&1 || true)
+  if echo "$out" | grep -qE 'HTTP/1\.[01] 500'; then
+    echo "    FAILED — nginx /api/ha proxy error (run: argus-update logs)"
+    echo "$out" | tail -3 | sed 's/^/      /'
+    return 1
+  fi
+  if echo "$out" | grep -qE 'HTTP/1\.[01] (200|401)'; then
+    if echo "$out" | grep -qi 'content-type:.*text/html'; then
+      echo "    FAILED — proxy returned HTML instead of JSON"
+      return 1
+    fi
+    echo "    OK — /api/ha proxy reaches Home Assistant"
+    return 0
+  fi
+  echo "    FAILED — could not probe /api/ha proxy"
+  echo "$out" | tail -5 | sed 's/^/      /'
   return 1
 }
 
@@ -146,6 +167,8 @@ post_deploy_checks() {
       echo "    FAILED — run: docker compose exec argus wget -qO- -T 15 ${ARGUS_HA_UPSTREAM%/}/api/"
       check_ha_docker_network || true
     fi
+    echo "==> HA proxy path (/api/ha → HA /api/):"
+    check_ha_proxy_from_argus || true
   else
     echo "==> HA proxy disabled — set HA URL to your Pi/LAN address in ARGUS Settings"
   fi
