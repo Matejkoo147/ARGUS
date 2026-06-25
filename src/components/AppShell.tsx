@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { ArgusLogo } from "./ArgusLogo";
 import { useHA } from "../context/HAContext";
@@ -26,6 +26,18 @@ export function AppShell() {
     summary.alarmState === "armed_home" ||
     summary.alarmState === "armed_night" ||
     summary.alarmState === "triggered";
+
+  const breach = summary.alarmState === "triggered";
+  const alertActive = breach || summary.motionActive > 0 || summary.doorOpen > 0;
+
+  useEffect(() => {
+    document.body.classList.toggle("system-armed", armed);
+    document.body.classList.toggle("system-breach", breach);
+    document.body.classList.toggle("system-alert", alertActive);
+    return () => {
+      document.body.classList.remove("system-armed", "system-breach", "system-alert");
+    };
+  }, [armed, breach, alertActive]);
 
   const dotClass =
     status === "connected"
@@ -56,13 +68,13 @@ export function AppShell() {
 
   return (
     <div className="app-root">
-      <header className="navbar">
+      <header className={`navbar${armed ? " navbar--armed" : ""}${breach ? " navbar--breach" : ""}`}>
         <div className="nav-brand-wrap">
           <ArgusLogo size={38} className="nav-brand-logo" />
         </div>
         <div className="nav-brand-center">
           <div className="nav-brand">ARGUS — ALL-SEEING GUARDIAN</div>
-          <div className="nav-brand-sub">panopticon security protocol</div>
+          <div className="nav-brand-sub">omniscient perimeter intelligence</div>
         </div>
         <div className="nav-stats-center">
           <span className="status-pill">

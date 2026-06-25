@@ -48,7 +48,7 @@ export function ConnectScreen({ onConnect, error }: ConnectScreenProps) {
       <form className="connect-panel" onSubmit={handleSubmit}>
         <ArgusLogo size={72} className="connect-logo" />
         <div className="connect-brand">ARGUS</div>
-        <div className="connect-tagline">all-seeing guardian</div>
+        <div className="connect-tagline">all-seeing guardian · perimeter watch</div>
 
         <div className="auth-steps">
           <p><strong>1.</strong> Create your account in <strong>Home Assistant</strong> first</p>
