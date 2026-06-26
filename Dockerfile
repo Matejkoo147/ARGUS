@@ -14,10 +14,12 @@ COPY deploy/nginx/argus-app-locations.conf /etc/nginx/argus/argus-app-locations.
 COPY deploy/nginx/ha-proxy.conf.template /etc/nginx/argus-templates/ha-proxy.conf.template
 COPY deploy/nginx/ssl.conf.template /etc/nginx/argus-templates/ssl.conf.template
 COPY deploy/nginx/stt-proxy.conf.template /etc/nginx/argus-templates/stt-proxy.conf.template
+COPY deploy/nginx/ollama-proxy.conf.template /etc/nginx/argus-templates/ollama-proxy.conf.template
 COPY deploy/nginx/42-argus-stt-proxy.sh /docker-entrypoint.d/42-argus-stt-proxy.sh
+COPY deploy/nginx/43-argus-ollama-proxy.sh /docker-entrypoint.d/43-argus-ollama-proxy.sh
 COPY deploy/nginx/docker-entrypoint.sh /docker-entrypoint.d/40-argus-ha-proxy.sh
 COPY deploy/nginx/41-argus-ssl.sh /docker-entrypoint.d/41-argus-ssl.sh
-RUN chmod +x /docker-entrypoint.d/40-argus-ha-proxy.sh /docker-entrypoint.d/41-argus-ssl.sh /docker-entrypoint.d/42-argus-stt-proxy.sh
+RUN chmod +x /docker-entrypoint.d/40-argus-ha-proxy.sh /docker-entrypoint.d/41-argus-ssl.sh /docker-entrypoint.d/42-argus-stt-proxy.sh /docker-entrypoint.d/43-argus-ollama-proxy.sh
 COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 8080 8443
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \

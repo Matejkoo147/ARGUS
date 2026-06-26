@@ -1,0 +1,65 @@
+# ESP32-CAM (AI-Thinker) for ARGUS / Home Assistant
+# Flash: .\recover-usb.ps1  or  esphome run argus-cam-1.yaml
+# WiFi broken / empty serial: .\recover-usb.ps1 -WifiOnly  then OTA this file
+
+esphome:
+  name: argus-cam-1
+  friendly_name: ARGUS Cam 1
+  min_version: 2024.6.0
+
+esp32:
+  board: esp32cam
+  framework:
+    type: arduino
+
+psram:
+  mode: quad
+  speed: 80MHz
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  power_save_mode: none
+  fast_connect: true
+  ap:
+    ssid: "Argus-Cam-1 Fallback"
+    password: !secret ap_password
+
+captive_portal:
+
+web_server:
+  port: 80
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+logger:
+  level: DEBUG
+  baud_rate: 115200
+  hardware_uart: UART0
+
+esp32_camera:
+  name: Live
+  external_clock:
+    pin: GPIO0
+    frequency: 20MHz
+  i2c_pins:
+    sda: GPIO26
+    scl: GPIO27
+  data_pins: [GPIO5, GPIO18, GPIO19, GPIO21, GPIO36, GPIO39, GPIO34, GPIO35]
+  vsync_pin: GPIO25
+  href_pin: GPIO23
+  pixel_clock_pin: GPIO22
+  power_down_pin: GPIO32
+  resolution: 640x480
+  jpeg_quality: 12
+  max_framerate: 5 fps
+  idle_framerate: 0.1 fps
+
+status_led:
+  pin: GPIO33

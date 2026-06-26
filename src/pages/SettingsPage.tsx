@@ -165,10 +165,11 @@ export function SettingsPage() {
         <div className="card-header"><i className="bi bi-cpu" /> Ollama / Odysseus AI (home server)</div>
         <div className="card-body">
           <div className="hint-box" style={{ marginBottom: "1rem" }}>
-            <p><strong>Odysseus AI</strong> and <strong>ARGUS Voice</strong> both talk to the same <strong>Ollama</strong> backend on your home server.</p>
+            <p><strong>Odysseus AI</strong> and <strong>ARGUS Voice</strong> use the same <strong>Ollama</strong> on mato-server.</p>
             <p style={{ marginTop: 6 }}>
-              From your laptop over WireGuard use <code>http://10.8.0.1:11434</code> (not argus.local — Ollama is on the server LAN/WG IP).
+              On <strong>HTTPS</strong> ARGUS use the proxy URL (browser blocks <code>http://</code> from <code>https://</code>):
             </p>
+            <p><code>{typeof window !== "undefined" ? `${window.location.origin}/api/ollama` : "https://argus.local:9443/api/ollama"}</code></p>
           </div>
           <div className="field">
             <label>Ollama URL (home server)</label>
@@ -176,7 +177,7 @@ export function SettingsPage() {
               className="cyber-input"
               value={ollamaUrl}
               onChange={(e) => setOllamaUrl(e.target.value)}
-              placeholder="http://10.8.0.1:11434"
+              placeholder="https://argus.local:9443/api/ollama"
             />
           </div>
           <div className="field">
@@ -206,11 +207,10 @@ export function SettingsPage() {
           <button type="button" className="btn-cyber action" onClick={handleSaveOllama}>SAVE & TEST</button>
           {ollamaStatus && <p style={{ marginTop: 8, fontSize: "0.75rem", color: "var(--muted)" }}>{ollamaStatus}</p>}
           <div className="hint-box" style={{ marginTop: "1rem" }}>
-            <p><strong>Working defaults (mato-server + WireGuard):</strong></p>
-            <p>URL: <code>http://10.8.0.1:11434</code> · Model: <code>qwen2.5:3b</code></p>
-            <p style={{ marginTop: 6 }}>On Ubuntu ensure Ollama listens on LAN and allows ARGUS:</p>
-            <p><code>OLLAMA_HOST=0.0.0.0:11434</code></p>
-            <p style={{ marginTop: 4 }}><code>OLLAMA_ORIGINS=https://argus.local:9443</code></p>
+            <p><strong>Server (.env on mato-server):</strong></p>
+            <p><code>ARGUS_OLLAMA_UPSTREAM=http://host.docker.internal:11434</code></p>
+            <p style={{ marginTop: 6 }}><strong>ARGUS Settings URL:</strong> <code>{typeof window !== "undefined" ? `${window.location.origin}/api/ollama` : "…/api/ollama"}</code> · Model: <code>qwen2.5:3b</code></p>
+            <p style={{ marginTop: 6 }}>On Ubuntu: <code>OLLAMA_HOST=0.0.0.0:11434</code> then <code>sudo systemctl restart ollama</code></p>
           </div>
         </div>
       </div>

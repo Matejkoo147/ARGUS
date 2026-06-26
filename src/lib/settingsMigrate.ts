@@ -78,6 +78,7 @@ export function runStartupMigration(): void {
   if (window.location.protocol === "https:") {
     importFromHash();
     normalizeHaConfigInStorage();
+    normalizeOllamaConfigInStorage();
     return;
   }
 
@@ -108,6 +109,31 @@ export function defaultOllamaUrl(): string {
   if (typeof window !== "undefined") {
     const host = window.location.hostname;
     if (host === "localhost" || host === "127.0.0.1") return "http://127.0.0.1:11434";
+    // HTTPS ARGUS cannot call http:// Ollama (browser blocks mixed content) — use nginx proxy
+    if (window.location.protocol === "https:") {
+      return `${window.location.origin}/api/ollama`;
+    }
   }
   return "http://10.8.0.1:11434";
+}
+
+/** Rewrite direct Ollama URLs to /api/ollama when on HTTPS. */
+export function normalizeOllamaConfigInStorage(): void {
+  if (typeof window === "undefined" || window.location.protocol !== "https:") return;
+  const raw = localStorage.getItem("argus_ollama_config");
+  if (!raw) return;
+  try {
+    const cfg = JSON.parse(raw) as { url?: string; model?: string; apiMode?: string };
+    if (!cfg.url) return;
+    const direct =
+      cfg.url.includes(":11434") &&
+      !cfg.url.includes("/api/ollama") &&
+      !cfg.url.startsWith(window.location.origin);
+    if (direct) {
+      cfg.url = `${window.location.origin}/api/ollama`;
+      localStorage.setItem("argus_ollama_config", JSON.stringify(cfg));
+    }
+  } catch {
+    /* ignore */
+  }
 }

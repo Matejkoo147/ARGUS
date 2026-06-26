@@ -16,6 +16,7 @@ services:
       ARGUS_HTTPS_PORT: ${ARGUS_HTTPS_PORT:-9443}
       ARGUS_BIND_IP: ${ARGUS_BIND_IP:-10.8.0.1}
       ARGUS_STT_UPSTREAM: ${ARGUS_STT_UPSTREAM:-}
+      ARGUS_OLLAMA_UPSTREAM: ${ARGUS_OLLAMA_UPSTREAM:-}
     volumes:
       - ./tls:/etc/nginx/argus/tls:ro
     networks:

@@ -13,3 +13,7 @@ tls/*.key
 tls/*.csr
 tls/*.srl
 tls/argus-ca.key
+
+# ESPHome local build + secrets (use secrets.yaml.example)
+deploy/esphome/.esphome/
+deploy/esphome/secrets.yaml
