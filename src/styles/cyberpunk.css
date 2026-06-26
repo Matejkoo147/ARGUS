@@ -1111,6 +1111,24 @@ body.system-armed .argus-logo--glow,
   cursor: not-allowed;
 }
 
+.voice-level {
+  height: 4px;
+  margin: 0 0 0.65rem;
+  background: rgba(0, 240, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.voice-level-bar {
+  height: 100%;
+  width: 0;
+  background: rgba(0, 240, 255, 0.35);
+  transition: width 0.08s linear;
+}
+.voice-level-bar.hot {
+  background: var(--neon-green);
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.45);
+}
+
 .voice-chat-actions {
   display: flex;
   align-items: center;

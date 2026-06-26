@@ -49,7 +49,8 @@ export function VoicePage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { listening, listenPhase, draft, micInputValue, setDraft, hint, micError, startMic, stopMic } = useArgusMic();
+  const { listening, listenPhase, draft, micInputValue, audioLevel, heardMic, setDraft, hint, micError, startMic, stopMic } =
+    useArgusMic();
 
   useEffect(() => {
     const syncOllama = () => setOllama(loadOllamaConfig());
@@ -255,6 +256,15 @@ You help with home security questions. For non-security topics you may answer br
               {busy ? busyLabel || "Processing…" : hint}
             </p>
 
+            {listening && (
+              <div className="voice-level" aria-hidden>
+                <div
+                  className={`voice-level-bar${heardMic ? " hot" : ""}`}
+                  style={{ width: `${Math.min(100, (audioLevel / 50) * 100)}%` }}
+                />
+              </div>
+            )}
+
             <div className="voice-input-wrap">
               <input
                 ref={inputRef}
@@ -335,11 +345,11 @@ You help with home security questions. For non-security topics you may answer br
         <div className="card-header"><i className="bi bi-info-circle" /> Web mic &amp; HTTPS</div>
         <div className="card-body hint-box" style={{ lineHeight: 1.7 }}>
           <p>
-            Browsers only allow the microphone on <strong>HTTPS</strong>. Use{" "}
-            <code>https://10.8.0.1:9443</code> — HTTP bookmarks redirect automatically and keep your settings.
+            Browsers only allow the microphone on <strong>HTTPS</strong>. Use <code>https://argus.local:9443</code>.
           </p>
           <p style={{ marginTop: 6 }}>
-            Later: ESP32 mics on Home Assistant will listen for <strong>“ARGUS, …”</strong> on your Pi. This web mic fills the text box so you can review and press Send.
+            <strong>Speech not typing?</strong> Brave/Chrome send audio to <strong>Google</strong> for transcription —
+            turn off <strong>Brave Shields</strong> for argus.local and watch the <strong>green mic level bar</strong> while speaking.
           </p>
           <p style={{ marginTop: 6 }}>Use the <strong>speaker button</strong> next to the mic to mute/unmute spoken replies.</p>
         </div>
