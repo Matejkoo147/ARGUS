@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const SILENCE_MS = 5000;
-const WAKE_RE = /\bargus\b/i;
+/** Wake word + common mis-hearings (Chrome speech varies by locale). */
+const WAKE_RE = /\b(argus|arkus|argos|arguss)\b/i;
 const NETWORK_RETRY_MS = 2500;
 const MAX_NETWORK_RETRIES = 2;
+/** English works best for the "ARGUS" wake word; Slovak UI can still speak commands in English. */
+const SPEECH_LANG = "en-US";
 
 export type ListenPhase = "idle" | "wake" | "capture";
 
@@ -13,15 +16,26 @@ function extractAfterWake(full: string): string | null {
   return full.slice(m.index + m[0].length).replace(/^[\s,:-]+/, "").trim();
 }
 
+function buildTranscript(ev: SpeechRecognitionEvent): string {
+  let full = "";
+  for (let i = 0; i < ev.results.length; i++) {
+    full += ev.results[i]![0]!.transcript;
+  }
+  return full.replace(/\s+/g, " ").trim();
+}
+
 export function useArgusMic(onError?: (msg: string) => void) {
   const [listenPhase, setListenPhase] = useState<ListenPhase>("idle");
   const [draft, setDraft] = useState("");
+  const [liveTranscript, setLiveTranscript] = useState("");
   const [micError, setMicError] = useState<string | null>(null);
 
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const wantListenRef = useRef(false);
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stoppingRef = useRef(false);
+  const restartRef = useRef(false);
+  const silenceArmedRef = useRef(false);
   const sessionTextRef = useRef("");
   const wakeFoundRef = useRef(false);
   const networkRetriesRef = useRef(0);
@@ -48,6 +62,7 @@ export function useArgusMic(onError?: (msg: string) => void) {
   const finalize = useCallback(() => {
     wantListenRef.current = false;
     stoppingRef.current = true;
+    silenceArmedRef.current = false;
     networkRetriesRef.current = 0;
     clearSilenceTimer();
     try {
@@ -58,12 +73,17 @@ export function useArgusMic(onError?: (msg: string) => void) {
     setListenPhase("idle");
   }, [clearSilenceTimer]);
 
-  const resetSilenceTimer = useCallback(() => {
+  const armSilenceTimer = useCallback(() => {
     clearSilenceTimer();
     silenceTimerRef.current = setTimeout(() => {
       finalize();
     }, SILENCE_MS);
   }, [clearSilenceTimer, finalize]);
+
+  const bumpSilenceTimer = useCallback(() => {
+    if (!silenceArmedRef.current) return;
+    armSilenceTimer();
+  }, [armSilenceTimer]);
 
   const stopMic = useCallback(() => {
     setMicError(null);
@@ -73,6 +93,7 @@ export function useArgusMic(onError?: (msg: string) => void) {
   useEffect(
     () => () => {
       wantListenRef.current = false;
+      silenceArmedRef.current = false;
       clearSilenceTimer();
       try {
         recognitionRef.current?.stop();
@@ -97,52 +118,55 @@ export function useArgusMic(onError?: (msg: string) => void) {
 
     if (!window.isSecureContext && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
       reportError(
-        "Microphone requires HTTPS or localhost. Open ARGUS via https://10.8.0.1:9443 (accept the self-signed cert once), or type your command below.",
+        "Microphone requires HTTPS or localhost. Open ARGUS via https://10.8.0.1:9443, or type your command below.",
       );
       return;
     }
 
     wantListenRef.current = true;
     stoppingRef.current = false;
+    restartRef.current = false;
+    silenceArmedRef.current = false;
     networkRetriesRef.current = 0;
     sessionTextRef.current = "";
     wakeFoundRef.current = false;
     setMicError(null);
     setDraft("");
+    setLiveTranscript("");
     setListenPhase("wake");
 
     const rec = new SR();
-    const lang = navigator.language || "en-US";
-    rec.lang = lang;
+    rec.lang = SPEECH_LANG;
     rec.continuous = true;
     rec.interimResults = true;
     rec.maxAlternatives = 1;
 
     rec.onstart = () => {
       networkRetriesRef.current = 0;
-      setListenPhase("wake");
-      resetSilenceTimer();
+      if (!restartRef.current) {
+        silenceArmedRef.current = true;
+        armSilenceTimer();
+      }
+      restartRef.current = false;
     };
 
     rec.onresult = (ev) => {
       if (!wantListenRef.current) return;
-      resetSilenceTimer();
+      bumpSilenceTimer();
       setMicError(null);
 
-      let segment = "";
-      for (let i = ev.resultIndex; i < ev.results.length; i++) {
-        segment += ev.results[i][0].transcript;
-      }
-      if (!segment.trim()) return;
+      const full = buildTranscript(ev);
+      if (!full) return;
 
-      sessionTextRef.current = `${sessionTextRef.current} ${segment}`.replace(/\s+/g, " ").trim();
-      const afterWake = extractAfterWake(sessionTextRef.current);
+      sessionTextRef.current = full;
+      setLiveTranscript(full);
 
+      const afterWake = extractAfterWake(full);
       if (afterWake !== null) {
         wakeFoundRef.current = true;
         setListenPhase("capture");
         setDraft(afterWake);
-      } else if (!wakeFoundRef.current && WAKE_RE.test(sessionTextRef.current)) {
+      } else if (WAKE_RE.test(full)) {
         wakeFoundRef.current = true;
         setListenPhase("capture");
         setDraft("");
@@ -151,9 +175,14 @@ export function useArgusMic(onError?: (msg: string) => void) {
 
     rec.onerror = (ev) => {
       const err = (ev as SpeechRecognitionErrorEvent).error;
-      if (err === "no-speech" || err === "aborted") return;
+      if (err === "no-speech") {
+        bumpSilenceTimer();
+        return;
+      }
+      if (err === "aborted") return;
       if (err === "not-allowed") {
         wantListenRef.current = false;
+        silenceArmedRef.current = false;
         setListenPhase("idle");
         reportError("Microphone blocked. Allow mic access for this site in browser settings.");
         return;
@@ -162,15 +191,17 @@ export function useArgusMic(onError?: (msg: string) => void) {
         networkRetriesRef.current += 1;
         if (networkRetriesRef.current > MAX_NETWORK_RETRIES) {
           wantListenRef.current = false;
+          silenceArmedRef.current = false;
           setListenPhase("idle");
           reportError(
-            "Voice recognition needs internet (Chrome uses Google speech servers). Check your connection, disable VPN/ad-block, or type your command below.",
+            "Voice recognition needs internet (Chrome uses Google speech servers). Check connection, VPN, or ad-block — or type below.",
           );
         }
         return;
       }
       if (err === "service-not-allowed") {
         wantListenRef.current = false;
+        silenceArmedRef.current = false;
         setListenPhase("idle");
         reportError("Speech service not available in this browser.");
       }
@@ -187,6 +218,7 @@ export function useArgusMic(onError?: (msg: string) => void) {
         return;
       }
       const delay = networkRetriesRef.current > 0 ? NETWORK_RETRY_MS : 120;
+      restartRef.current = true;
       window.setTimeout(() => {
         if (!wantListenRef.current) return;
         try {
@@ -202,10 +234,11 @@ export function useArgusMic(onError?: (msg: string) => void) {
       rec.start();
     } catch {
       wantListenRef.current = false;
+      silenceArmedRef.current = false;
       setListenPhase("idle");
       reportError("Could not start microphone. Try again.");
     }
-  }, [listenPhase, stopMic, resetSilenceTimer, finalize, reportError]);
+  }, [listenPhase, stopMic, armSilenceTimer, bumpSilenceTimer, finalize, reportError]);
 
   const listening = listenPhase !== "idle";
 
@@ -213,15 +246,20 @@ export function useArgusMic(onError?: (msg: string) => void) {
     micError
       ? micError
       : listenPhase === "wake"
-        ? "Listening… say “ARGUS”, then your command"
+        ? "Listening… say “ARGUS, status” (words appear below as you speak)"
         : listenPhase === "capture"
           ? "Capturing… stops after 5s silence · tap mic to finish early"
           : "Tap mic · say “ARGUS, status” · review · Send";
+
+  /** Text to show in the input while the mic is active. */
+  const micInputValue = listenPhase === "capture" && draft ? draft : liveTranscript;
 
   return {
     listening,
     listenPhase,
     draft,
+    liveTranscript,
+    micInputValue,
     setDraft,
     hint,
     micError,

@@ -49,7 +49,7 @@ export function VoicePage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { listening, listenPhase, draft, setDraft, hint, micError, startMic, stopMic } = useArgusMic();
+  const { listening, listenPhase, draft, micInputValue, setDraft, hint, micError, startMic, stopMic } = useArgusMic();
 
   useEffect(() => {
     const syncOllama = () => setOllama(loadOllamaConfig());
@@ -61,12 +61,6 @@ export function VoicePage() {
       window.removeEventListener("storage", syncOllama);
     };
   }, []);
-
-  useEffect(() => {
-    if (listening) {
-      setInput(draft);
-    }
-  }, [draft, listening]);
 
   useEffect(() => {
     if (!listening && draft) {
@@ -194,11 +188,10 @@ You help with home security questions. For non-security topics you may answer br
       navigate("/settings");
       return;
     }
-    sendMessage("Reply with exactly: MODEL_CHECK and state your model name and one random number between 1000-9999.");
-  };
-
-  const runStatusTest = () => {
-    sendMessage("status");
+    const n = Math.floor(Math.random() * 10000);
+    sendMessage(
+      `Reply with exactly: MODEL_CHECK — state your model name and the number ${n}.`,
+    );
   };
 
   const toggleMute = () => {
@@ -266,21 +259,21 @@ You help with home security questions. For non-security topics you may answer br
               <input
                 ref={inputRef}
                 className="cyber-input voice-input"
-                value={listening ? draft : input}
+                value={listening ? micInputValue : input}
                 onChange={(e) => {
                   const v = e.target.value;
                   if (listening) setDraft(v);
                   else setInput(v);
                 }}
-                onKeyDown={(e) => e.key === "Enter" && sendMessage(listening ? draft : input)}
+                onKeyDown={(e) => e.key === "Enter" && sendMessage(listening ? (draft || micInputValue) : input)}
                 placeholder="Ask ARGUS… or say “ARGUS, status”"
                 disabled={busy}
               />
               <button
                 type="button"
                 className="btn-cyber action voice-send"
-                onClick={() => sendMessage(listening ? draft : input)}
-                disabled={busy || !(listening ? draft : input).trim()}
+                onClick={() => sendMessage(listening ? (draft || micInputValue) : input)}
+                disabled={busy || !(listening ? (draft || micInputValue) : input).trim()}
               >
                 {busy ? (
                   <>
@@ -302,21 +295,12 @@ You help with home security questions. For non-security topics you may answer br
               <button
                 type="button"
                 className="btn-cyber-mini"
-                onClick={runStatusTest}
-                disabled={busy}
-                title="Instant HA status reply (no Ollama needed)"
-              >
-                <i className="bi bi-shield-check" /> STATUS
-              </button>
-              <button
-                type="button"
-                className="btn-cyber-mini"
                 onClick={runModelTest}
                 disabled={busy}
                 title={
                   ollama
-                    ? "Send a test prompt to verify Ollama"
-                    : "Ollama not configured on this URL — open Settings"
+                    ? "Model check — Ollama replies with MODEL_CHECK and a random number"
+                    : "Configure Ollama in Settings first"
                 }
               >
                 <i className="bi bi-cpu" /> TEST
