@@ -61,7 +61,19 @@ check_ollama_proxy_from_argus() {
     return 1
   fi
   if echo "$out" | grep -qE 'HTTP/1\.[01] 200'; then
-    echo "    OK — /api/ollama proxy reaches Ollama"
+    echo "    OK — /api/ollama proxy reaches Ollama (tags)"
+    out=$($COMPOSE exec -T argus wget -qO- -T 60 --header='Content-Type: application/json' \
+      --post-data='{"model":"qwen2.5:3b","stream":false,"messages":[{"role":"user","content":"ping"}]}' \
+      http://127.0.0.1:8080/api/ollama/api/chat 2>&1 || true)
+    if echo "$out" | grep -qiE '403|forbidden'; then
+      echo "    WARN — /api/chat returned 403 (Origin); redeploy for nginx Origin strip fix"
+      return 1
+    fi
+    if echo "$out" | grep -q '"message"'; then
+      echo "    OK — /api/ollama proxy chat works"
+      return 0
+    fi
+    echo "    WARN — /api/chat probe inconclusive (model may still work from browser after redeploy)"
     return 0
   fi
   echo "    FAILED — could not probe /api/ollama proxy"

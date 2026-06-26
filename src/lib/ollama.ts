@@ -148,11 +148,39 @@ export async function testOllama(cfg: OllamaConfig): Promise<{ ok: boolean; mess
     const data = (await res.json()) as { models?: { name: string }[] };
     const names = data.models?.map((m) => m.name).slice(0, 6).join(", ") || "none";
     const hasModel = data.models?.some((m) => m.name === cfg.model || m.name.startsWith(cfg.model));
+    if (!hasModel) {
+      return {
+        ok: true,
+        message: `Connected. Models: ${names}. "${cfg.model}" not found — use exact name from ollama list.`,
+      };
+    }
+
+    // GET /api/tags can succeed while POST /api/chat returns 403 (Ollama Origin check on browser POST).
+    const chatProbe = await fetch(`${base}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: cfg.model,
+        stream: false,
+        messages: [{ role: "user", content: "ping" }],
+      }),
+      signal: AbortSignal.timeout(120000),
+    });
+    if (chatProbe.status === 403) {
+      return {
+        ok: false,
+        message:
+          "HTTP 403 on /api/chat (Ollama rejected Origin). Run argus-update build on server — proxy strips Origin. Or set OLLAMA_ORIGINS=https://argus.local:9443 on host.",
+      };
+    }
+    if (!chatProbe.ok) {
+      const err = await chatProbe.text();
+      return { ok: false, message: `HTTP ${chatProbe.status} on /api/chat: ${err.slice(0, 120)}` };
+    }
+
     return {
       ok: true,
-      message: hasModel
-        ? `Connected. Model "${cfg.model}" found.`
-        : `Connected. Models: ${names}. "${cfg.model}" not found — use exact name from ollama list.`,
+      message: `Connected. Model "${cfg.model}" found and chat works.`,
     };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Connection failed" };
