@@ -7,6 +7,7 @@ const SYSTEM_ENTITY_PATTERNS = [
   /^binary_sensor\.updater/,
   /^update\./,
   /^backup\./,
+  /^sensor\.backup/,
   /^event\./,
   /^automation\./,
   /^script\./,

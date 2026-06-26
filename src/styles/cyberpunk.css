@@ -1498,7 +1498,8 @@ body.system-armed .argus-logo--glow,
 .entity-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; }
 
 .entity-tile { padding: 0.75rem; cursor: pointer; }
-.entity-tile .entity-name { font-size: 0.72rem; color: var(--muted); margin-bottom: 0.25rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.entity-tile .entity-name { font-size: 0.72rem; color: var(--text); margin-bottom: 0.15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.entity-tile .entity-id { font-size: 0.58rem; color: var(--muted); letter-spacing: 0.03em; margin-bottom: 0.35rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .entity-tile .entity-state { font-family: Orbitron, sans-serif; font-size: 0.9rem; font-weight: 600; }
 .entity-tile.on .entity-state { color: var(--neon-green); }
 .entity-tile.off .entity-state { color: var(--muted); }
@@ -1590,5 +1591,52 @@ body.system-armed .argus-logo--glow,
 .err-box { margin-top: 0.75rem; padding: 0.6rem 0.8rem; background: rgba(255, 43, 90, 0.08); border-left: 3px solid var(--red); color: #ff8aa0; font-size: 0.78rem; display: none; }
 .err-box.show { display: block; }
 .empty-state { padding: 3rem 1rem; text-align: center; color: var(--muted); }
-.filter-bar { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
-.filter-bar .cyber-input { flex: 1; min-width: 180px; }
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.filter-bar-search {
+  flex: 1;
+  min-width: 180px;
+}
+.filter-bar-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-shrink: 0;
+}
+.filter-bar-domain {
+  width: 9.5rem;
+  min-width: 9.5rem;
+}
+.filter-bar-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+.filter-bar-toggle input {
+  accent-color: var(--neon-cyan);
+  cursor: pointer;
+}
+.devices-section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+.devices-section-hint {
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  text-transform: lowercase;
+}

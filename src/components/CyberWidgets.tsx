@@ -22,9 +22,10 @@ export function EntityTile({ entity, onToggle }: EntityTileProps) {
       tabIndex={0}
       onKeyDown={(e) => e.key === "Enter" && onToggle?.(entity)}
     >
-      <div className="entity-name">
+      <div className="entity-name" title={getFriendlyName(entity)}>
         {DOMAIN_ICONS[domain] ?? "◆"} {getFriendlyName(entity)}
       </div>
+      <div className="entity-id">{entity.entity_id}</div>
       <div className="entity-state">{formatEntityState(entity)}</div>
       {entity.attributes.unit_of_measurement && (
         <div style={{ fontSize: "0.65rem", color: "var(--muted)", marginTop: 4 }}>
