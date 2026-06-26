@@ -348,8 +348,8 @@ You help with home security questions. For non-security topics you may answer br
             Browsers only allow the microphone on <strong>HTTPS</strong>. Use <code>https://argus.local:9443</code>.
           </p>
           <p style={{ marginTop: 6 }}>
-            <strong>Speech not typing?</strong> Brave/Chrome send audio to <strong>Google</strong> for transcription —
-            turn off <strong>Brave Shields</strong> for argus.local and watch the <strong>green mic level bar</strong> while speaking.
+            <strong>Speech not typing in Brave?</strong> Enable server Whisper once:{" "}
+            <code>docker compose --profile stt up -d</code> on mato-server, then mic uses local STT automatically.
           </p>
           <p style={{ marginTop: 6 }}>Use the <strong>speaker button</strong> next to the mic to mute/unmute spoken replies.</p>
         </div>

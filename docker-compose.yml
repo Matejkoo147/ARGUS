@@ -15,6 +15,7 @@ services:
       ARGUS_HTTPS: ${ARGUS_HTTPS:-}
       ARGUS_HTTPS_PORT: ${ARGUS_HTTPS_PORT:-9443}
       ARGUS_BIND_IP: ${ARGUS_BIND_IP:-10.8.0.1}
+      ARGUS_STT_UPSTREAM: ${ARGUS_STT_UPSTREAM:-}
     volumes:
       - ./tls:/etc/nginx/argus/tls:ro
     networks:
@@ -27,6 +28,17 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+
+  # Local speech-to-text (Brave blocks Google Web Speech API)
+  whisper:
+    image: onerahmet/openai-whisper-asr-webservice:latest
+    profiles: [stt]
+    restart: unless-stopped
+    environment:
+      ASR_MODEL: base
+      ASR_ENGINE: faster_whisper
+    networks:
+      - ha-argus
 
 networks:
   ha-argus:

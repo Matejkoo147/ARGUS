@@ -731,6 +731,15 @@ body.system-armed .argus-logo--glow,
   color: var(--neon-cyan);
 }
 
+.weather-loc {
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  max-width: 5.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .weather-chip { display: inline-flex; align-items: center; gap: 0.35rem; }
 .weather-chip .bi { color: var(--neon-amber); }
 .weather-humidity { font-size: 0.62rem; color: var(--muted); margin-left: 0.15rem; }

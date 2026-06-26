@@ -119,10 +119,21 @@ export function groupHomeSensors(entities: HAEntity[]): { id: HomeSensorGroup; l
 }
 
 export interface WeatherSnapshot {
+  location: string;
   label: string;
   temp: string | null;
   humidity: string | null;
   icon: string;
+}
+
+function weatherLocation(entity: HAEntity): string {
+  const loc = entity.attributes.location as string | undefined;
+  if (loc?.trim()) return loc.trim();
+  const fn = getFriendlyName(entity);
+  if (fn && !/^weather$/i.test(fn) && !/^forecast$/i.test(fn)) return fn;
+  const slug = entity.entity_id.split(".")[1]?.replace(/_/g, " ").trim();
+  if (slug) return slug.charAt(0).toUpperCase() + slug.slice(1);
+  return "Home";
 }
 
 function formatCelsius(value: unknown, unit?: string): string | null {
@@ -150,6 +161,7 @@ export function pickWeatherSnapshot(entities: HAEntity[]): WeatherSnapshot | nul
     );
     if (!temp) return null;
     return {
+      location: weatherLocation(temp),
       label: getFriendlyName(temp),
       temp: formatSensorTempCelsius(temp),
       humidity: null,
@@ -162,6 +174,7 @@ export function pickWeatherSnapshot(entities: HAEntity[]): WeatherSnapshot | nul
   const h = weather.attributes.humidity;
 
   return {
+    location: weatherLocation(weather),
     label: getFriendlyName(weather),
     temp: formatCelsius(t, unit),
     humidity: h != null && h !== "" ? `${h}%` : null,

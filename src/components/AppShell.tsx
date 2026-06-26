@@ -115,6 +115,7 @@ export function AppShell() {
             {weather && (
               <span className="nav-metric nav-metric--weather" title={weather.label}>
                 <i className={`bi ${weather.icon}`} />
+                <span className="weather-loc">{weather.location}</span>
                 {weather.temp && <strong>{weather.temp}</strong>}
                 {weather.humidity && <span className="weather-humidity">{weather.humidity}</span>}
               </span>

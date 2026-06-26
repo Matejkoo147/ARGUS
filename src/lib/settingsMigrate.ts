@@ -108,7 +108,6 @@ export function defaultOllamaUrl(): string {
   if (typeof window !== "undefined") {
     const host = window.location.hostname;
     if (host === "localhost" || host === "127.0.0.1") return "http://127.0.0.1:11434";
-    return `http://${host}:11434`;
   }
   return "http://10.8.0.1:11434";
 }
