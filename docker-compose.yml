@@ -8,9 +8,13 @@ services:
     ports:
       # Bind only on WireGuard IP — not exposed on LAN/public (see DEPLOY.md)
       - "${ARGUS_BIND_IP:-10.8.0.1}:${ARGUS_PORT:-9080}:8080"
+      - "${ARGUS_BIND_IP:-10.8.0.1}:${ARGUS_HTTPS_PORT:-9443}:8443"
     environment:
       TZ: ${TZ:-Europe/Bratislava}
       ARGUS_HA_UPSTREAM: ${ARGUS_HA_UPSTREAM:-}
+      ARGUS_HTTPS: ${ARGUS_HTTPS:-}
+      ARGUS_HTTPS_PORT: ${ARGUS_HTTPS_PORT:-9443}
+      ARGUS_BIND_IP: ${ARGUS_BIND_IP:-10.8.0.1}
     networks:
       - ha-argus
     extra_hosts:

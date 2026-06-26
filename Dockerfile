@@ -7,12 +7,16 @@ COPY . .
 RUN npm run build
 
 FROM nginx:1.27-alpine
-RUN mkdir -p /etc/nginx/argus /etc/nginx/argus-templates
+RUN apk add --no-cache openssl \
+  && mkdir -p /etc/nginx/argus /etc/nginx/argus-templates /etc/nginx/argus/tls
 COPY deploy/nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY deploy/nginx/argus-app-locations.conf /etc/nginx/argus/argus-app-locations.conf
 COPY deploy/nginx/ha-proxy.conf.template /etc/nginx/argus-templates/ha-proxy.conf.template
+COPY deploy/nginx/ssl.conf.template /etc/nginx/argus-templates/ssl.conf.template
 COPY deploy/nginx/docker-entrypoint.sh /docker-entrypoint.d/40-argus-ha-proxy.sh
-RUN chmod +x /docker-entrypoint.d/40-argus-ha-proxy.sh
+COPY deploy/nginx/41-argus-ssl.sh /docker-entrypoint.d/41-argus-ssl.sh
+RUN chmod +x /docker-entrypoint.d/40-argus-ha-proxy.sh /docker-entrypoint.d/41-argus-ssl.sh
 COPY --from=build /app/dist /usr/share/nginx/html
-EXPOSE 8080
+EXPOSE 8080 8443
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
   CMD wget -qO- http://127.0.0.1:8080/ >/dev/null || exit 1

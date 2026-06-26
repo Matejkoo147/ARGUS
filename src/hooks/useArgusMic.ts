@@ -96,7 +96,9 @@ export function useArgusMic(onError?: (msg: string) => void) {
     }
 
     if (!window.isSecureContext && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
-      reportError("Microphone requires HTTPS or localhost.");
+      reportError(
+        "Microphone requires HTTPS or localhost. Open ARGUS via https://10.8.0.1:9443 (accept the self-signed cert once), or type your command below.",
+      );
       return;
     }
 

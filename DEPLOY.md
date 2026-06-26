@@ -198,12 +198,33 @@ Or:
 
 ---
 
+## HTTPS for web microphone (recommended)
+
+Browsers block the microphone on plain `http://10.8.0.1:9080`. Enable built-in TLS:
+
+```env
+ARGUS_HTTPS=1
+ARGUS_HTTPS_PORT=9443
+ARGUS_PUBLIC_URL=https://10.8.0.1:9443
+```
+
+Then `argus-update`. Open **https://10.8.0.1:9443**, accept the self-signed certificate once.
+
+- **HA URL in ARGUS:** `https://10.8.0.1:9443/api/ha` (auto-filled from browser URL)
+- **Ollama CORS:** add both origins if needed:
+  `Environment="OLLAMA_ORIGINS=http://10.8.0.1:9080,https://10.8.0.1:9443"`
+
+**Without HTTPS:** type commands in the text box, or SSH tunnel:  
+`ssh -L 9080:10.8.0.1:9080 matejkoo@10.8.0.1` → open `http://localhost:9080`
+
+---
+
 ## First login over WireGuard
 
 1. Connect **WireGuard** on your laptop/phone
-2. Open **http://10.8.0.1:9080** (or your `ARGUS_PUBLIC_URL`)
+2. Open **https://10.8.0.1:9443** (or `ARGUS_PUBLIC_URL` from `.env`)
 3. **Home Assistant URL** in ARGUS:
-   - **With proxy (recommended):** `http://10.8.0.1:9080/api/ha`
+   - **With proxy (recommended):** `https://10.8.0.1:9443/api/ha`
    - **Without proxy:** `http://<pi-lan-ip>:8123` and add CORS in HA `configuration.yaml`:
      ```yaml
      http:

@@ -11,7 +11,7 @@ const NAV = [
   { to: "/cameras", icon: "bi-camera-video", label: "Cameras" },
   { to: "/sensors", icon: "bi-broadcast", label: "Sensors" },
   { to: "/voice", icon: "bi-mic", label: "Voice" },
-  { to: "/automations", icon: "bi-lightning", label: "Auto" },
+  { to: "/automations", icon: "bi-diagram-3", label: "Automations" },
   { to: "/history", icon: "bi-clock-history", label: "History" },
   { to: "/settings", icon: "bi-gear", label: "Settings" },
 ];

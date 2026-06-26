@@ -153,6 +153,11 @@ post_deploy_checks() {
 
   echo "==> Listening:"
   ss -tlnp 2>/dev/null | grep ":${port} " || sudo ss -tlnp 2>/dev/null | grep ":${port} " || true
+  if [ "${ARGUS_HTTPS:-}" = "1" ]; then
+    local https_port="${ARGUS_HTTPS_PORT:-9443}"
+    ss -tlnp 2>/dev/null | grep ":${https_port} " || sudo ss -tlnp 2>/dev/null | grep ":${https_port} " || true
+    echo "==> HTTPS: enabled (microphone) — https://${host}:${https_port}"
+  fi
 
   echo "==> Container status:"
   $COMPOSE ps
@@ -175,14 +180,26 @@ post_deploy_checks() {
 }
 
 print_access_hint() {
-  local url port
+  local url port https_port
   port="${ARGUS_PORT:-9080}"
-  url="${ARGUS_PUBLIC_URL:-http://10.8.0.1:${port}}"
+  https_port="${ARGUS_HTTPS_PORT:-9443}"
+  url="${ARGUS_PUBLIC_URL:-}"
+  if [ -z "${url}" ]; then
+    if [ "${ARGUS_HTTPS:-}" = "1" ]; then
+      url="https://${ARGUS_BIND_IP:-10.8.0.1}:${https_port}"
+    else
+      url="http://${ARGUS_BIND_IP:-10.8.0.1}:${port}"
+    fi
+  fi
 
   echo ""
   echo "Done. Open (WireGuard must be connected):"
   echo "  ${url}"
+  if [ "${ARGUS_HTTPS:-}" = "1" ]; then
+    echo "  (HTTPS — accept self-signed cert once for web microphone)"
+  fi
   echo ""
+  echo "  HTTP fallback: http://${ARGUS_BIND_IP:-10.8.0.1}:${port}"
   echo "  NOT http://localhost:${port} — ARGUS listens on ${ARGUS_BIND_IP:-10.8.0.1} only."
   echo ""
   echo "First time:"
@@ -192,5 +209,8 @@ print_access_hint() {
   else
     echo "  2. HA URL: http://YOUR_PI_IP:8123 (add ARGUS URL to HA CORS if needed)"
   fi
-  echo "  3. Ollama URL (Settings): http://10.0.0.1:11434 or your server LAN IP"
+  echo "  3. Ollama URL (Settings): http://${ARGUS_BIND_IP:-10.8.0.1}:11434"
+  if [ "${ARGUS_HTTPS:-}" = "1" ]; then
+    echo "  4. Ollama CORS: add https://${ARGUS_BIND_IP:-10.8.0.1}:${https_port} to OLLAMA_ORIGINS if Ollama test fails"
+  fi
 }

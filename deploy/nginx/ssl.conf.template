@@ -1,0 +1,18 @@
+# Generated when ARGUS_HTTPS=1 — enables microphone (secure context) over WireGuard
+server {
+    listen 8443 ssl;
+    server_name _;
+
+    ssl_certificate /etc/nginx/argus/tls/cert.pem;
+    ssl_certificate_key /etc/nginx/argus/tls/key.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+
+    include /etc/nginx/argus/argus-app-locations.conf;
+}

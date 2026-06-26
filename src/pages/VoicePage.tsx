@@ -122,6 +122,7 @@ export function VoicePage() {
   const respond = useCallback(
     async (text: string) => {
       setBusy(true);
+      setBusyLabel("Processing…");
       let reply = "";
       let meta = "";
       let source: ReplySource = "fallback";
@@ -157,6 +158,7 @@ You help with home security questions. For non-security topics you may answer br
 
       setMessages((prev) => [...prev, { role: "argus", text: reply, meta, source }]);
       speak(reply);
+      setBusyLabel("");
       setBusy(false);
     },
     [ollama, runLocalCommand, summary, speak]
@@ -256,7 +258,14 @@ You help with home security questions. For non-security topics you may answer br
                 onClick={() => sendMessage(listening ? draft : input)}
                 disabled={busy || !(listening ? draft : input).trim()}
               >
-                SEND
+                {busy ? (
+                  <>
+                    <span className="argus-spinner argus-spinner--btn" aria-hidden />
+                    WAIT
+                  </>
+                ) : (
+                  "SEND"
+                )}
               </button>
             </div>
           </div>
@@ -287,16 +296,32 @@ You help with home security questions. For non-security topics you may answer br
                 )}
               </div>
             ))}
+            {busy && (
+              <div className="chat-bubble argus thinking" aria-live="polite" aria-busy="true">
+                <div className="who">ARGUS</div>
+                <div className="chat-thinking">
+                  <span className="argus-spinner" aria-hidden />
+                  <span>{busyLabel || "Thinking…"}</span>
+                </div>
+              </div>
+            )}
             <div ref={chatEndRef} />
           </div>
         </div>
       </div>
 
       <div className="card" style={{ marginTop: "1rem" }}>
-        <div className="card-header"><i className="bi bi-info-circle" /> Web mic fallback</div>
+        <div className="card-header"><i className="bi bi-info-circle" /> Web mic &amp; HTTPS</div>
         <div className="card-body hint-box" style={{ lineHeight: 1.7 }}>
-          <p>Later: ESP32 mics on Home Assistant will listen for <strong>“ARGUS, …”</strong> on your Pi. This web mic is a fallback — it fills the text box so you can review and press Send.</p>
-          <p style={{ marginTop: 6 }}>Use the <strong>speaker button</strong> next to the mic to mute/unmute spoken replies. Mute state is remembered on this device.</p>
+          <p>
+            Browsers only allow the microphone on <strong>HTTPS</strong> or <strong>localhost</strong>.
+            Over WireGuard, use <code>https://10.8.0.1:9443</code> (set <code>ARGUS_HTTPS=1</code> in server <code>.env</code>, then <code>argus-update</code>).
+            Accept the self-signed certificate warning once.
+          </p>
+          <p style={{ marginTop: 6 }}>
+            Later: ESP32 mics on Home Assistant will listen for <strong>“ARGUS, …”</strong> on your Pi. This web mic fills the text box so you can review and press Send.
+          </p>
+          <p style={{ marginTop: 6 }}>Use the <strong>speaker button</strong> next to the mic to mute/unmute spoken replies.</p>
         </div>
       </div>
     </>

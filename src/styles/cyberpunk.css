@@ -1516,6 +1516,42 @@ body.system-armed .argus-logo--glow,
 .chat-bubble .who { font-family: Orbitron, sans-serif; font-size: 0.58rem; letter-spacing: 0.15em; color: var(--muted); margin-bottom: 0.25rem; }
 .chat-meta { font-size: 0.58rem; letter-spacing: 0.06em; color: var(--muted); margin-top: 0.45rem; padding-top: 0.35rem; border-top: 1px solid var(--border); }
 .chat-bubble.ollama-reply { border-color: rgba(0, 240, 255, 0.35); }
+.chat-bubble.thinking {
+  border-color: rgba(0, 240, 255, 0.45);
+  background: rgba(0, 240, 255, 0.06);
+  animation: thinking-pulse 1.6s ease-in-out infinite;
+}
+.chat-thinking {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--neon-cyan);
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+}
+.argus-spinner {
+  display: inline-block;
+  width: 1.1rem;
+  height: 1.1rem;
+  border: 2px solid rgba(0, 240, 255, 0.2);
+  border-top-color: var(--neon-cyan);
+  border-radius: 50%;
+  animation: argus-spin 0.75s linear infinite;
+  flex-shrink: 0;
+}
+.argus-spinner--btn {
+  width: 0.85rem;
+  height: 0.85rem;
+  margin-right: 0.35rem;
+  vertical-align: -0.15em;
+}
+@keyframes argus-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes thinking-pulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(0, 240, 255, 0); }
+  50% { box-shadow: 0 0 12px rgba(0, 240, 255, 0.12); }
+}
 
 .err-box { margin-top: 0.75rem; padding: 0.6rem 0.8rem; background: rgba(255, 43, 90, 0.08); border-left: 3px solid var(--red); color: #ff8aa0; font-size: 0.78rem; display: none; }
 .err-box.show { display: block; }

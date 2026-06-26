@@ -78,7 +78,8 @@ ufw allow in on "${WG_IF}" to any port 3000 proto tcp comment 'resell-radar (or 
 ufw allow in on "${WG_IF}" to any port 5000 proto tcp comment 'App on :5000 via WG — edit label'
 ufw allow in on "${WG_IF}" to any port 7000 proto tcp comment 'App on :7000 via WG — edit label'
 ufw allow in on "${WG_IF}" to any port 8000 proto tcp comment 'App on :8000 via WG — edit label'
-ufw allow in on "${WG_IF}" to any port 9080 proto tcp comment 'ARGUS — home security UI via WG only'
+ufw allow in on "${WG_IF}" to any port 9080 proto tcp comment 'ARGUS — HTTP via WG only'
+ufw allow in on "${WG_IF}" to any port 9443 proto tcp comment 'ARGUS — HTTPS (mic) via WG only'
 
 # —— Route forwarding (your eno2 ↔ wg0 rules) ——
 ufw route allow in on "${LAN_IF}" out on "${WG_IF}" comment "Forward ${LAN_IF} → ${WG_IF}"
