@@ -211,6 +211,7 @@ export function SettingsPage() {
             <p><code>ARGUS_OLLAMA_UPSTREAM=http://host.docker.internal:11434</code></p>
             <p style={{ marginTop: 6 }}><strong>ARGUS Settings URL:</strong> <code>{typeof window !== "undefined" ? `${window.location.origin}/api/ollama` : "…/api/ollama"}</code> · Model: <code>qwen2.5:3b</code></p>
             <p style={{ marginTop: 6 }}>On Ubuntu: <code>OLLAMA_HOST=0.0.0.0:11434</code> then <code>sudo systemctl restart ollama</code></p>
+            <p style={{ marginTop: 6 }}><strong>HTTP 502?</strong> On server: <code>curl http://127.0.0.1:11434/api/tags</code> — if OK, try <code>ARGUS_OLLAMA_UPSTREAM=http://172.17.0.1:11434</code> in <code>.env</code> and <code>argus-update build</code>.</p>
           </div>
         </div>
       </div>

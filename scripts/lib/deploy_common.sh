@@ -51,6 +51,24 @@ wget_probe_in_argus() {
   return 1
 }
 
+check_ollama_proxy_from_argus() {
+  local out
+  out=$($COMPOSE exec -T argus wget -S -O /dev/null -T 15 http://127.0.0.1:8080/api/ollama/api/tags 2>&1 || true)
+  if echo "$out" | grep -qE 'HTTP/1\.[01] 502'; then
+    echo "    FAILED — nginx /api/ollama proxy cannot reach upstream Ollama (502)"
+    echo "    On host: curl http://127.0.0.1:11434/api/tags"
+    echo "    Try .env: ARGUS_OLLAMA_UPSTREAM=http://172.17.0.1:11434 then argus-update build"
+    return 1
+  fi
+  if echo "$out" | grep -qE 'HTTP/1\.[01] 200'; then
+    echo "    OK — /api/ollama proxy reaches Ollama"
+    return 0
+  fi
+  echo "    FAILED — could not probe /api/ollama proxy"
+  echo "$out" | tail -5 | sed 's/^/      /'
+  return 1
+}
+
 check_ha_proxy_from_argus() {
   local out
   out=$($COMPOSE exec -T argus wget -S -O /dev/null -T 15 http://127.0.0.1:8080/api/ha/api/ 2>&1 || true)
@@ -177,6 +195,15 @@ post_deploy_checks() {
   else
     echo "==> HA proxy disabled — set HA URL to your Pi/LAN address in ARGUS Settings"
   fi
+
+  if [ -n "${ARGUS_OLLAMA_UPSTREAM:-}" ]; then
+    echo "==> Ollama proxy enabled: ${ARGUS_OLLAMA_UPSTREAM}"
+    echo "    In ARGUS Settings, use Ollama URL: ${ARGUS_PUBLIC_URL:-http://127.0.0.1:${port}}/api/ollama"
+    echo "==> Ollama proxy path (/api/ollama → Ollama /api/):"
+    check_ollama_proxy_from_argus || true
+  else
+    echo "==> Ollama proxy disabled — add ARGUS_OLLAMA_UPSTREAM to .env for HTTPS Ollama"
+  fi
 }
 
 print_access_hint() {
@@ -209,8 +236,13 @@ print_access_hint() {
   else
     echo "  2. HA URL: http://YOUR_PI_IP:8123 (add ARGUS URL to HA CORS if needed)"
   fi
-  echo "  3. Ollama URL (Settings): http://${ARGUS_BIND_IP:-10.8.0.1}:11434"
+  echo "  3. Ollama URL (Settings): ${url}/api/ollama"
+  if [ -n "${ARGUS_OLLAMA_UPSTREAM:-}" ]; then
+    echo "     (proxy upstream: ${ARGUS_OLLAMA_UPSTREAM})"
+  else
+    echo "     Add ARGUS_OLLAMA_UPSTREAM=http://host.docker.internal:11434 to .env"
+  fi
   if [ "${ARGUS_HTTPS:-}" = "1" ]; then
-    echo "  4. Ollama CORS: add https://${ARGUS_BIND_IP:-10.8.0.1}:${https_port} to OLLAMA_ORIGINS if Ollama test fails"
+    echo "  4. Ollama on host: OLLAMA_HOST=0.0.0.0:11434 (systemctl restart ollama)"
   fi
 }
