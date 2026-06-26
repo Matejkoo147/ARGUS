@@ -1,5 +1,7 @@
 export type OllamaApiMode = "native" | "openai";
 
+import { defaultOllamaUrl } from "./settingsMigrate";
+
 export interface OllamaConfig {
   /** Ollama base URL, e.g. http://192.168.1.50:11434 or .../v1 for OpenAI-compatible */
   url: string;
@@ -9,8 +11,17 @@ export interface OllamaConfig {
 
 export const OLLAMA_STORAGE_KEY = "argus_ollama_config";
 
+export function getDefaultOllama(): OllamaConfig {
+  return {
+    url: defaultOllamaUrl(),
+    model: "qwen2.5:3b",
+    apiMode: "native",
+  };
+}
+
+/** @deprecated use getDefaultOllama() — evaluated at import time */
 export const DEFAULT_OLLAMA: OllamaConfig = {
-  url: "http://192.168.1.50:11434",
+  url: "http://10.8.0.1:11434",
   model: "qwen2.5:3b",
   apiMode: "native",
 };

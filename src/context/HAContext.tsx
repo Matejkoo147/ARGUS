@@ -19,6 +19,7 @@ import {
   getDomain,
   isOnState,
 } from "../types";
+import { normalizeHaConfigInStorage } from "../lib/settingsMigrate";
 
 interface HAContextValue {
   status: ConnectionStatus;
@@ -45,6 +46,7 @@ const HAContext = createContext<HAContextValue | null>(null);
 
 function loadConfig(): HAConfig | null {
   try {
+    normalizeHaConfigInStorage();
     const raw =
       localStorage.getItem(STORAGE_KEY) ??
       localStorage.getItem(STORAGE_KEY_LEGACY) ??
@@ -61,7 +63,11 @@ function loadConfig(): HAConfig | null {
 }
 
 function saveConfig(cfg: HAConfig) {
-  const payload = JSON.stringify(cfg);
+  const normalized =
+    typeof window !== "undefined" && cfg.url.includes("/api/ha")
+      ? { ...cfg, url: `${window.location.origin}/api/ha` }
+      : cfg;
+  const payload = JSON.stringify(normalized);
   localStorage.removeItem(STORAGE_KEY);
   sessionStorage.removeItem(STORAGE_KEY);
   if (cfg.rememberSession !== false) {

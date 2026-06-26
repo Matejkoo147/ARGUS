@@ -1,19 +1,21 @@
 import { useEffect, useState } from "react";
 import { useHA } from "../context/HAContext";
 import { maskToken } from "../lib/auth";
-import { loadOllamaConfig, saveOllamaConfig, testOllama, type OllamaApiMode, type OllamaConfig, DEFAULT_OLLAMA } from "../lib/ollama";
+import { loadOllamaConfig, saveOllamaConfig, testOllama, getDefaultOllama, type OllamaApiMode, type OllamaConfig } from "../lib/ollama";
+import { defaultHaProxyUrl } from "../lib/settingsMigrate";
 import { getDomain, getFriendlyName } from "../types";
 
 export function SettingsPage() {
   const { config, connect, disconnect, status, refreshStates, entities, preferences, setDashboardCameras } = useHA();
-  const [url, setUrl] = useState(config?.url ?? "http://localhost:8123");
+  const [url, setUrl] = useState(config?.url ?? defaultHaProxyUrl());
   const [token, setToken] = useState(config?.token ?? "");
   const [displayName, setDisplayName] = useState(config?.username ?? "");
   const [rememberSession, setRememberSession] = useState(config?.rememberSession ?? false);
   const [saved, setSaved] = useState(false);
 
-  const [ollamaUrl, setOllamaUrl] = useState(DEFAULT_OLLAMA.url);
-  const [ollamaModel, setOllamaModel] = useState(DEFAULT_OLLAMA.model);
+  const defaults = getDefaultOllama();
+  const [ollamaUrl, setOllamaUrl] = useState(defaults.url);
+  const [ollamaModel, setOllamaModel] = useState(defaults.model);
   const [ollamaApiMode, setOllamaApiMode] = useState<OllamaApiMode>("native");
   const [ollamaStatus, setOllamaStatus] = useState<string | null>(null);
 

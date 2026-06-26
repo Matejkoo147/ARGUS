@@ -8,10 +8,11 @@ interface ConnectScreenProps {
   error?: string | null;
 }
 
+import { defaultHaProxyUrl } from "../lib/settingsMigrate";
+
 function defaultHaUrl(): string {
   if (import.meta.env.DEV) return "http://localhost:8123";
-  if (typeof window !== "undefined") return `${window.location.origin}/api/ha`;
-  return "http://10.8.0.1:9080/api/ha";
+  return defaultHaProxyUrl();
 }
 
 export function ConnectScreen({ onConnect, error }: ConnectScreenProps) {
@@ -67,7 +68,7 @@ export function ConnectScreen({ onConnect, error }: ConnectScreenProps) {
             className="cyber-input"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder="http://10.8.0.1:9080/api/ha"
+            placeholder="https://10.8.0.1:9443/api/ha"
             required
           />
         </div>

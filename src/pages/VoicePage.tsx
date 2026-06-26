@@ -351,13 +351,11 @@ You help with home security questions. For non-security topics you may answer br
         <div className="card-header"><i className="bi bi-info-circle" /> Web mic &amp; HTTPS</div>
         <div className="card-body hint-box" style={{ lineHeight: 1.7 }}>
           <p>
-            Browsers only allow the microphone on <strong>HTTPS</strong> or <strong>localhost</strong>.
-            Over WireGuard, use <code>https://10.8.0.1:9443</code> (set <code>ARGUS_HTTPS=1</code> in server <code>.env</code>, then <code>argus-update</code>).
-            Accept the self-signed certificate warning once.
+            Browsers only allow the microphone on <strong>HTTPS</strong>. Use{" "}
+            <code>https://10.8.0.1:9443</code> — HTTP bookmarks redirect automatically and keep your settings.
           </p>
           <p style={{ marginTop: 6 }}>
-            Switching from <code>http://…:9080</code> to <code>https://…:9443</code> is a <strong>new site</strong> in the browser —
-            re-save Ollama in <strong>Settings</strong> (and HA login if needed). Settings are stored per URL.
+            Later: ESP32 mics on Home Assistant will listen for <strong>“ARGUS, …”</strong> on your Pi. This web mic fills the text box so you can review and press Send.
           </p>
           <p style={{ marginTop: 6 }}>Use the <strong>speaker button</strong> next to the mic to mute/unmute spoken replies.</p>
         </div>
