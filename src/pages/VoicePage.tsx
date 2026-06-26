@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useHA } from "../context/HAContext";
 import { useArgusMic } from "../hooks/useArgusMic";
-import { askOllama, loadOllamaConfig } from "../lib/ollama";
+import { askOllama, loadOllamaConfig, type OllamaConfig } from "../lib/ollama";
 import { getDomain, getFriendlyName } from "../types";
 
 const VOICE_MUTE_KEY = "argus_voice_muted";
@@ -27,24 +28,39 @@ function formatMeta(source: ReplySource, model?: string, latencyMs?: number, tok
 
 export function VoicePage() {
   const { entities, summary, callService } = useHA();
-  const ollama = loadOllamaConfig();
+  const navigate = useNavigate();
+  const [ollama, setOllama] = useState<OllamaConfig | null>(() => loadOllamaConfig());
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [busyLabel, setBusyLabel] = useState("");
   const [muted, setMuted] = useState(() => localStorage.getItem(VOICE_MUTE_KEY) === "1");
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: "argus",
-      text: ollama
-        ? `ARGUS online — Ollama model ${ollama.model}. Tap the mic, say “ARGUS, status”, review the text, then Send.`
-        : "ARGUS online. Tap mic and say “ARGUS, status” — or configure Ollama in Settings for AI replies.",
-      meta: ollama ? `Ready · ${ollama.url}` : undefined,
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    const o = loadOllamaConfig();
+    return [
+      {
+        role: "argus",
+        text: o
+          ? `ARGUS online — Ollama model ${o.model}. Tap the mic, say “ARGUS, status”, review the text, then Send.`
+          : "ARGUS online. Tap mic and say “ARGUS, status” — or configure Ollama in Settings for AI replies.",
+        meta: o ? `Ready · ${o.url}` : undefined,
+      },
+    ];
+  });
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { listening, listenPhase, draft, setDraft, hint, micError, startMic, stopMic } = useArgusMic();
+
+  useEffect(() => {
+    const syncOllama = () => setOllama(loadOllamaConfig());
+    syncOllama();
+    window.addEventListener("focus", syncOllama);
+    window.addEventListener("storage", syncOllama);
+    return () => {
+      window.removeEventListener("focus", syncOllama);
+      window.removeEventListener("storage", syncOllama);
+    };
+  }, []);
 
   useEffect(() => {
     if (listening) {
@@ -174,7 +190,15 @@ You help with home security questions. For non-security topics you may answer br
   };
 
   const runModelTest = () => {
+    if (!ollama) {
+      navigate("/settings");
+      return;
+    }
     sendMessage("Reply with exactly: MODEL_CHECK and state your model name and one random number between 1000-9999.");
+  };
+
+  const runStatusTest = () => {
+    sendMessage("status");
   };
 
   const toggleMute = () => {
@@ -274,17 +298,30 @@ You help with home security questions. For non-security topics you may answer br
         <div className="card voice-card">
           <div className="card-header card-header-row">
             <span><i className="bi bi-chat-dots" /> Conversation</span>
-            {ollama && (
+            <div className="voice-chat-actions">
+              <button
+                type="button"
+                className="btn-cyber-mini"
+                onClick={runStatusTest}
+                disabled={busy}
+                title="Instant HA status reply (no Ollama needed)"
+              >
+                <i className="bi bi-shield-check" /> STATUS
+              </button>
               <button
                 type="button"
                 className="btn-cyber-mini"
                 onClick={runModelTest}
                 disabled={busy}
-                title="Send a test prompt to verify Ollama"
+                title={
+                  ollama
+                    ? "Send a test prompt to verify Ollama"
+                    : "Ollama not configured on this URL — open Settings"
+                }
               >
                 <i className="bi bi-cpu" /> TEST
               </button>
-            )}
+            </div>
           </div>
           <div className="card-body log-terminal voice-chat" style={{ height: 360 }}>
             {messages.map((m, i) => (
@@ -319,7 +356,8 @@ You help with home security questions. For non-security topics you may answer br
             Accept the self-signed certificate warning once.
           </p>
           <p style={{ marginTop: 6 }}>
-            Later: ESP32 mics on Home Assistant will listen for <strong>“ARGUS, …”</strong> on your Pi. This web mic fills the text box so you can review and press Send.
+            Switching from <code>http://…:9080</code> to <code>https://…:9443</code> is a <strong>new site</strong> in the browser —
+            re-save Ollama in <strong>Settings</strong> (and HA login if needed). Settings are stored per URL.
           </p>
           <p style={{ marginTop: 6 }}>Use the <strong>speaker button</strong> next to the mic to mute/unmute spoken replies.</p>
         </div>

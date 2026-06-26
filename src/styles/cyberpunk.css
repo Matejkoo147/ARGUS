@@ -1111,6 +1111,13 @@ body.system-armed .argus-logo--glow,
   cursor: not-allowed;
 }
 
+.voice-chat-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
 .voice-chat .chat-text {
   line-height: 1.5;
   word-break: break-word;
