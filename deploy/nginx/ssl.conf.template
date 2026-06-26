@@ -3,8 +3,8 @@ server {
     listen 8443 ssl;
     server_name _;
 
-    ssl_certificate /etc/nginx/argus/tls/cert.pem;
-    ssl_certificate_key /etc/nginx/argus/tls/key.pem;
+    ssl_certificate ${ARGUS_TLS_CERT};
+    ssl_certificate_key ${ARGUS_TLS_KEY};
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_prefer_server_ciphers off;
 

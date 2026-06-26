@@ -7,3 +7,9 @@ dist/
 .env.*.local
 !.env.example
 tsconfig.tsbuildinfo
+
+# Custom TLS (generated on server — never commit private keys)
+tls/*.key
+tls/*.csr
+tls/*.srl
+tls/argus-ca.key

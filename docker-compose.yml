@@ -15,6 +15,8 @@ services:
       ARGUS_HTTPS: ${ARGUS_HTTPS:-}
       ARGUS_HTTPS_PORT: ${ARGUS_HTTPS_PORT:-9443}
       ARGUS_BIND_IP: ${ARGUS_BIND_IP:-10.8.0.1}
+    volumes:
+      - ./tls:/etc/nginx/argus/tls:ro
     networks:
       - ha-argus
     extra_hosts:
