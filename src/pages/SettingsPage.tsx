@@ -7,7 +7,7 @@ import { defaultHaProxyUrl } from "../lib/settingsMigrate";
 import { getDomain } from "../types";
 
 export function SettingsPage() {
-  const { config, connect, disconnect, status, refreshStates, entities, preferences, setDashboardCameras, entityAreas } = useHA();
+  const { config, connect, disconnect, status, refreshStates, entities, preferences, setDashboardCameras, entityLocations } = useHA();
   const [url, setUrl] = useState(config?.url ?? defaultHaProxyUrl());
   const [token, setToken] = useState(config?.token ?? "");
   const [displayName, setDisplayName] = useState(config?.username ?? "");
@@ -150,7 +150,7 @@ export function SettingsPage() {
                 <option value="">Auto (first camera)</option>
                 <option value={CAMERA_SLOT_NONE}>None (disabled)</option>
                 {cameras.map((c) => (
-                  <option key={c.entity_id} value={c.entity_id}>{getCameraDisplayLabel(c, entityAreas)}</option>
+                  <option key={c.entity_id} value={c.entity_id}>{getCameraDisplayLabel(c, entityLocations.areas, entityLocations.registryNames)}</option>
                 ))}
               </select>
             </div>
@@ -160,7 +160,7 @@ export function SettingsPage() {
                 <option value="">Auto (second camera)</option>
                 <option value={CAMERA_SLOT_NONE}>None (disabled)</option>
                 {cameras.map((c) => (
-                  <option key={c.entity_id} value={c.entity_id}>{getCameraDisplayLabel(c, entityAreas)}</option>
+                  <option key={c.entity_id} value={c.entity_id}>{getCameraDisplayLabel(c, entityLocations.areas, entityLocations.registryNames)}</option>
                 ))}
               </select>
             </div>

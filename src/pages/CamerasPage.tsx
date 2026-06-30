@@ -4,7 +4,7 @@ import { getCameraDisplayLabel } from "../lib/cameras";
 import { getDomain } from "../types";
 
 export function CamerasPage() {
-  const { entities, config, entityAreas } = useHA();
+  const { entities, config, entityLocations } = useHA();
   const cameras = entities.filter((e) => getDomain(e.entity_id) === "camera");
   const haUrl = config?.url ?? "";
   const token = config?.token ?? "";
@@ -31,7 +31,7 @@ export function CamerasPage() {
               entity={cam}
               haUrl={haUrl}
               token={token}
-              label={getCameraDisplayLabel(cam, entityAreas)}
+              label={getCameraDisplayLabel(cam, entityLocations.areas, entityLocations.registryNames)}
               slot={i % 2 === 0 ? 1 : 2}
             />
           ))}

@@ -33,15 +33,18 @@ export function extractCameraIp(entity: HAEntity): string | null {
 export function getCameraDisplayLabel(
   entity: HAEntity,
   entityAreas: Record<string, string>,
+  registryNames: Record<string, string> = {},
 ): string {
   const ip = extractCameraIp(entity);
   const friendly = getFriendlyName(entity);
   const area =
     entityAreas[entity.entity_id] ||
     (typeof entity.attributes.area === "string" ? entity.attributes.area : null);
+  const regName = registryNames[entity.entity_id];
 
   const location =
     area ||
+    (regName && !isIpLike(regName) ? regName : null) ||
     (friendly && !isIpLike(friendly) ? friendly : null);
 
   if (location && ip) return `${location} - ${ip}`;

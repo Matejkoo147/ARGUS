@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useHA } from "../context/HAContext";
-import {
-  fetchCameraSnapshot,
-  getCameraDisplayLabel,
-  haCameraStreamUrl,
-} from "../lib/cameras";
+import { fetchCameraSnapshot, getCameraDisplayLabel } from "../lib/cameras";
+import { startHaMjpegStream } from "../lib/mjpegStream";
 import type { HAEntity } from "../types";
 
 interface CameraFeedProps {
@@ -19,19 +16,14 @@ type FeedMode = "stream" | "snapshot";
 type FeedStatus = "loading" | "ok" | "error";
 
 const SNAPSHOT_MS = 3000;
-const STREAM_RETRIES = 8;
-const STREAM_RETRY_MS = 2000;
 
 export function CameraFeed({ entity, haUrl, token, label, slot }: CameraFeedProps) {
-  const { entityAreas } = useHA();
+  const { entityLocations } = useHA();
   const [mode, setMode] = useState<FeedMode>("stream");
   const [status, setStatus] = useState<FeedStatus>("loading");
   const [errorDetail, setErrorDetail] = useState("");
-  const [snapshotSrc, setSnapshotSrc] = useState<string | null>(null);
-  const [streamKey, setStreamKey] = useState(0);
-  const streamAttempts = useRef(0);
+  const [frameSrc, setFrameSrc] = useState<string | null>(null);
   const blobRef = useRef<string | null>(null);
-  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const revokeBlob = useCallback(() => {
     if (blobRef.current) {
@@ -40,10 +32,11 @@ export function CameraFeed({ entity, haUrl, token, label, slot }: CameraFeedProp
     }
   }, []);
 
-  const switchToSnapshot = useCallback(() => {
+  const switchToSnapshot = useCallback((reason?: string) => {
+    if (reason) console.warn("[ARGUS] camera stream fallback:", entity?.entity_id, reason);
     setMode("snapshot");
     setStatus("loading");
-  }, []);
+  }, [entity?.entity_id]);
 
   const loadSnapshot = useCallback(async () => {
     if (!entity || !haUrl || !token) return;
@@ -55,63 +48,56 @@ export function CameraFeed({ entity, haUrl, token, label, slot }: CameraFeedProp
     }
     revokeBlob();
     blobRef.current = result.url;
-    setSnapshotSrc(result.url);
+    setFrameSrc(result.url);
     setStatus("ok");
   }, [entity, haUrl, token, revokeBlob]);
 
-  const retryStream = useCallback(() => {
-    if (retryTimer.current) clearTimeout(retryTimer.current);
-    retryTimer.current = setTimeout(() => {
-      setStreamKey((k) => k + 1);
-      setStatus("loading");
-    }, STREAM_RETRY_MS);
-  }, []);
-
-  const handleStreamError = useCallback(() => {
-    streamAttempts.current += 1;
-    if (streamAttempts.current < STREAM_RETRIES) {
-      retryStream();
-      return;
-    }
-    switchToSnapshot();
-  }, [retryStream, switchToSnapshot]);
-
-  // Always start with live stream — no pre-probe (probe fetch was falsely failing / blocking).
   useEffect(() => {
     if (!entity || !haUrl || !token) return;
 
     setMode("stream");
     setStatus("loading");
     setErrorDetail("");
-    setSnapshotSrc(null);
-    streamAttempts.current = 0;
-    setStreamKey(0);
+    setFrameSrc(null);
     revokeBlob();
-
-    return () => {
-      if (retryTimer.current) clearTimeout(retryTimer.current);
-      revokeBlob();
-    };
   }, [entity?.entity_id, haUrl, token, revokeBlob]);
 
-  // Snapshot polling only as last-resort fallback.
+  // Live stream via fetch + Bearer (same auth path as working snapshots).
   useEffect(() => {
-    if (!entity || mode !== "snapshot" || !haUrl || !token) return;
+    if (mode !== "stream" || !entity || !haUrl || !token) return;
+
+    const stop = startHaMjpegStream(
+      haUrl,
+      entity.entity_id,
+      token,
+      (url) => {
+        revokeBlob();
+        blobRef.current = url;
+        setFrameSrc(url);
+        setStatus("ok");
+      },
+      (reason) => switchToSnapshot(reason),
+    );
+
+    return () => stop();
+  }, [mode, entity?.entity_id, haUrl, token, revokeBlob, switchToSnapshot]);
+
+  // Snapshot polling only when stream fails.
+  useEffect(() => {
+    if (mode !== "snapshot" || !entity || !haUrl || !token) return;
 
     void loadSnapshot();
     const id = setInterval(() => void loadSnapshot(), SNAPSHOT_MS);
     return () => clearInterval(id);
-  }, [entity?.entity_id, mode, haUrl, token, loadSnapshot]);
+  }, [mode, entity?.entity_id, haUrl, token, loadSnapshot]);
 
-  // Periodically try to upgrade back from snapshots to stream.
+  // Retry stream periodically while on snapshot fallback.
   useEffect(() => {
     if (mode !== "snapshot" || !entity || !haUrl || !token) return;
 
     const id = setInterval(() => {
-      streamAttempts.current = 0;
       setMode("stream");
       setStatus("loading");
-      setStreamKey((k) => k + 1);
     }, 45000);
 
     return () => clearInterval(id);
@@ -136,7 +122,11 @@ export function CameraFeed({ entity, haUrl, token, label, slot }: CameraFeedProp
     );
   }
 
-  const displayName = getCameraDisplayLabel(entity, entityAreas);
+  const displayName = getCameraDisplayLabel(
+    entity,
+    entityLocations.areas,
+    entityLocations.registryNames,
+  );
 
   if (!haUrl || !token) {
     return (
@@ -154,7 +144,6 @@ export function CameraFeed({ entity, haUrl, token, label, slot }: CameraFeedProp
     );
   }
 
-  const streamSrc = `${haCameraStreamUrl(haUrl, entity.entity_id, token)}&_k=${streamKey}`;
   const live = entity.state === "idle" || entity.state === "streaming";
   const modeLabel = mode === "stream" ? "STREAM" : "SNAP";
 
@@ -178,24 +167,17 @@ export function CameraFeed({ entity, haUrl, token, label, slot }: CameraFeedProp
               </div>
             </div>
           </div>
-        ) : mode === "stream" ? (
+        ) : frameSrc ? (
           <>
-            {status === "loading" && (
+            {status === "loading" && mode === "stream" && (
               <div className="camera-feed-loading">Connecting live stream…</div>
             )}
-            <img
-              key={streamKey}
-              className="camera-feed"
-              src={streamSrc}
-              alt={displayName}
-              onLoad={() => setStatus("ok")}
-              onError={handleStreamError}
-            />
+            <img className="camera-feed" src={frameSrc} alt={displayName} />
           </>
-        ) : snapshotSrc ? (
-          <img className="camera-feed" src={snapshotSrc} alt={displayName} />
         ) : (
-          <div className="camera-feed-loading">Loading fallback snapshot…</div>
+          <div className="camera-feed-loading">
+            {mode === "stream" ? "Connecting live stream…" : "Loading snapshot…"}
+          </div>
         )}
       </div>
     </div>

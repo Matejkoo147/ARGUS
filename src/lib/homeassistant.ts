@@ -1,4 +1,4 @@
-import type { HAConfig, HAEntity, HALogbookEntry, HAAreaRegistryEntry, HAEntityRegistryEntry } from "../types";
+import type { HAConfig, HAEntity, HALogbookEntry, HAAreaRegistryEntry, HADeviceRegistryEntry, HAEntityRegistryEntry } from "../types";
 import { haCameraSnapshotUrl, haCameraStreamUrl } from "./cameras";
 import { resolveHaFetchUrl, resolveHaWebSocketUrl } from "./haUrl";
 
@@ -160,6 +160,10 @@ export class HomeAssistantClient {
 
   async getAreaRegistry() {
     return this.call<HAAreaRegistryEntry[]>("config/area_registry/list");
+  }
+
+  async getDeviceRegistry() {
+    return this.call<HADeviceRegistryEntry[]>("config/device_registry/list");
   }
 
   async callService(

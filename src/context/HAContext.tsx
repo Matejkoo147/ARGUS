@@ -10,7 +10,7 @@ import {
 } from "react";
 import { resolveHaUsername } from "../lib/auth";
 import { HomeAssistantClient } from "../lib/homeassistant";
-import type { ArgusPreferences, ConnectionStatus, HAConfig, HAEntity, HAAreaRegistryEntry, HAEntityRegistryEntry, SecuritySummary } from "../types";
+import type { ArgusPreferences, ConnectionStatus, EntityLocationMaps, HAConfig, HAEntity, HAAreaRegistryEntry, HADeviceRegistryEntry, HAEntityRegistryEntry, SecuritySummary } from "../types";
 import {
   PREFS_KEY,
   STORAGE_KEY,
@@ -21,29 +21,48 @@ import {
 } from "../types";
 import { normalizeHaConfigInStorage } from "../lib/settingsMigrate";
 
-function buildEntityAreaMap(
+function buildEntityLocationMaps(
   entityRegistry: HAEntityRegistryEntry[],
   areaRegistry: HAAreaRegistryEntry[],
-): Record<string, string> {
+  deviceRegistry: HADeviceRegistryEntry[],
+): EntityLocationMaps {
   const areaNames = new Map(areaRegistry.map((a) => [a.area_id, a.name]));
-  const map: Record<string, string> = {};
+  const deviceArea = new Map(deviceRegistry.map((d) => [d.id, d.area_id]));
+
+  const areas: Record<string, string> = {};
+  const registryNames: Record<string, string> = {};
+
   for (const entry of entityRegistry) {
-    if (entry.area_id && areaNames.has(entry.area_id)) {
-      map[entry.entity_id] = areaNames.get(entry.area_id)!;
+    const customName = entry.name?.trim();
+    if (customName) registryNames[entry.entity_id] = customName;
+
+    let areaId = entry.area_id;
+    if (!areaId && entry.device_id) {
+      areaId = deviceArea.get(entry.device_id) ?? null;
+    }
+    if (areaId && areaNames.has(areaId)) {
+      areas[entry.entity_id] = areaNames.get(areaId)!;
     }
   }
-  return map;
+
+  return { areas, registryNames };
 }
 
-async function loadEntityAreas(client: HomeAssistantClient): Promise<Record<string, string>> {
+async function loadEntityLocations(client: HomeAssistantClient): Promise<EntityLocationMaps> {
   try {
-    const [entityRegistry, areaRegistry] = await Promise.all([
+    const [entityRegistry, areaRegistry, deviceRegistry] = await Promise.all([
       client.getEntityRegistry(),
       client.getAreaRegistry(),
+      client.getDeviceRegistry(),
     ]);
-    return buildEntityAreaMap(entityRegistry, areaRegistry);
-  } catch {
-    return {};
+    const maps = buildEntityLocationMaps(entityRegistry, areaRegistry, deviceRegistry);
+    if (import.meta.env.DEV) {
+      console.debug("[ARGUS] HA areas loaded:", Object.keys(maps.areas).length, "entities with area");
+    }
+    return maps;
+  } catch (e) {
+    console.warn("[ARGUS] Failed to load HA area/device registry:", e);
+    return { areas: {}, registryNames: {} };
   }
 }
 
@@ -55,7 +74,7 @@ interface HAContextValue {
   client: HomeAssistantClient | null;
   summary: SecuritySummary;
   preferences: ArgusPreferences;
-  entityAreas: Record<string, string>;
+  entityLocations: EntityLocationMaps;
   connect: (config: HAConfig) => Promise<void>;
   disconnect: () => void;
   callService: (
@@ -170,7 +189,7 @@ export function HAProvider({ children }: { children: ReactNode }) {
   const [entities, setEntities] = useState<HAEntity[]>([]);
   const [config, setConfig] = useState<HAConfig | null>(loadConfig);
   const [preferences, setPreferences] = useState<ArgusPreferences>(loadPreferences);
-  const [entityAreas, setEntityAreas] = useState<Record<string, string>>({});
+  const [entityLocations, setEntityLocations] = useState<EntityLocationMaps>({ areas: {}, registryNames: {} });
   const clientRef = useRef<HomeAssistantClient | null>(null);
   const connectGenRef = useRef(0);
 
@@ -242,10 +261,10 @@ export function HAProvider({ children }: { children: ReactNode }) {
 
       const savedCfg: HAConfig = { ...fullCfg, username };
 
-      const areas = await loadEntityAreas(client);
+      const locations = await loadEntityLocations(client);
 
       setEntities(states);
-      setEntityAreas(areas);
+      setEntityLocations(locations);
       setConfig(savedCfg);
       saveConfig(savedCfg);
       clientRef.current = client;
@@ -271,7 +290,7 @@ export function HAProvider({ children }: { children: ReactNode }) {
     }
     clientRef.current = null;
     setEntities([]);
-    setEntityAreas({});
+    setEntityLocations({ areas: {}, registryNames: {} });
     setConfig(null);
     clearStoredConfig();
     setStatus("disconnected");
@@ -280,12 +299,12 @@ export function HAProvider({ children }: { children: ReactNode }) {
   const refreshStates = useCallback(async () => {
     if (!clientRef.current) return;
     const client = clientRef.current;
-    const [states, areas] = await Promise.all([
+    const [states, locations] = await Promise.all([
       client.getStates(),
-      loadEntityAreas(client),
+      loadEntityLocations(client),
     ]);
     setEntities(states);
-    setEntityAreas(areas);
+    setEntityLocations(locations);
   }, []);
 
   const callService = useCallback(
@@ -367,7 +386,7 @@ export function HAProvider({ children }: { children: ReactNode }) {
       client: clientRef.current,
       summary,
       preferences,
-      entityAreas,
+      entityLocations,
       connect,
       disconnect,
       callService,
@@ -375,7 +394,7 @@ export function HAProvider({ children }: { children: ReactNode }) {
       refreshStates,
       setDashboardCameras,
     }),
-    [status, error, entities, config, summary, preferences, entityAreas, connect, disconnect, callService, toggleEntity, refreshStates, setDashboardCameras]
+    [status, error, entities, config, summary, preferences, entityLocations, connect, disconnect, callService, toggleEntity, refreshStates, setDashboardCameras]
   );
 
   return <HAContext.Provider value={value}>{children}</HAContext.Provider>;

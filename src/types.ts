@@ -39,13 +39,27 @@ export interface HALogbookEntry {
 export interface HAEntityRegistryEntry {
   entity_id: string;
   area_id: string | null;
+  device_id: string | null;
   name?: string | null;
+}
+
+/** Home Assistant device registry entry. */
+export interface HADeviceRegistryEntry {
+  id: string;
+  area_id: string | null;
+  name?: string | null;
+  name_by_user?: string | null;
 }
 
 /** Home Assistant area registry entry (room name). */
 export interface HAAreaRegistryEntry {
   area_id: string;
   name: string;
+}
+
+export interface EntityLocationMaps {
+  areas: Record<string, string>;
+  registryNames: Record<string, string>;
 }
 
 export type ConnectionStatus = "disconnected" | "connecting" | "connected" | "error";
