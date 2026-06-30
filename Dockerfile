@@ -4,7 +4,10 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-RUN npm run build
+RUN npm run build \
+  && test -f dist/favicon-180.png \
+  && test -f dist/apple-touch-icon.png \
+  && test -f dist/apple-touch-icon-precomposed.png
 
 FROM nginx:1.27-alpine
 RUN apk add --no-cache openssl \

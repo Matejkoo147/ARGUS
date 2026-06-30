@@ -174,6 +174,25 @@ wait_for_argus() {
   done
 }
 
+check_icon_assets_from_argus() {
+  local icon out ct
+  for icon in favicon-180.png apple-touch-icon.png apple-touch-icon-precomposed.png; do
+    out=$($COMPOSE exec -T argus wget -S -O /dev/null -T 10 "http://127.0.0.1:8080/${icon}" 2>&1 || true)
+    if ! echo "$out" | grep -qE 'HTTP/1\.[01] 200'; then
+      echo "    FAILED — /${icon} not reachable (iOS will show generic A icon)"
+      echo "$out" | tail -3 | sed 's/^/      /'
+      return 1
+    fi
+    ct=$(echo "$out" | grep -i 'content-type:' | tail -1)
+    if echo "$ct" | grep -qi 'text/html'; then
+      echo "    FAILED — /${icon} returns HTML instead of PNG (rebuild with: argus-update build --no-cache)"
+      return 1
+    fi
+  done
+  echo "    OK — home-screen icon PNGs served correctly"
+  return 0
+}
+
 post_deploy_checks() {
   local port="${ARGUS_PORT:-9080}"
   local host="${ARGUS_BIND_IP:-127.0.0.1}"
@@ -191,6 +210,9 @@ post_deploy_checks() {
 
   echo "==> Container status:"
   $COMPOSE ps
+
+  echo "==> Home-screen icons (iOS Add to Home Screen):"
+  check_icon_assets_from_argus || true
 
   if [ -n "${ARGUS_HA_UPSTREAM:-}" ]; then
     echo "==> HA proxy enabled: ${ARGUS_HA_UPSTREAM}"

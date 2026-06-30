@@ -66,5 +66,6 @@ await writePng("favicon-16.png", favicon, 16);
 await writePng("favicon-32.png", favicon, 32);
 await writePng("favicon-180.png", apple180, 180);
 await writePng("apple-touch-icon.png", apple180, 180);
+await writePng("apple-touch-icon-precomposed.png", apple180, 180);
 await writePng("icon-192.png", appleTouchSvg(192), 192);
 await writePng("icon-512.png", apple512, 512);
