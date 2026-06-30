@@ -16,10 +16,16 @@ const char* WIFI_PASS = "20032009";
 // ---------------------------
 
 // -------- Video quality (edit here) --------
-// Lower FPS + slightly higher JPEG number = smaller frames = steadier WiFi stream.
-#define STREAM_TARGET_FPS  15
-#define CAM_JPEG_QUALITY   12     // 0=best, 63=worst (12–14 is a good smooth-stream range)
+// AI Thinker OV2640 presets (lower JPEG number = sharper, larger frames, lower FPS):
+//   VGA  640x480 q10  ~10-15 FPS  <- default (best balance for ARGUS)
+//   QVGA 320x240 q12  ~20-25 FPS  <- max smoothness, lower detail
+//   SVGA 800x600 q10  ~5-8 FPS    <- more detail, choppier
+//
+// Change CAM_FRAME_SIZE + CAM_JPEG_QUALITY + STREAM_TARGET_FPS together.
+#define STREAM_TARGET_FPS  12     // VGA sweet spot on WiFi; try 15 if stable
+#define CAM_JPEG_QUALITY   10     // 10-12 for VGA; avoid below 10 (huge frames)
 #define CAM_FRAME_SIZE     FRAMESIZE_VGA
+#define CAM_FB_COUNT       2      // double-buffer — best streaming FPS with PSRAM
 #define STREAM_CHUNK_SIZE  8192
 // -------------------------------------------
 
@@ -236,9 +242,11 @@ void start_camera_server() {
 }
 
 void print_psram_info() {
-  Serial.printf("PSRAM: %s (%u bytes)\n",
-                psramFound() ? "yes" : "NO",
-                ESP.getPsramSize());
+  if (psramFound()) {
+    Serial.printf("PSRAM: Found (%u bytes)\n", ESP.getPsramSize());
+  } else {
+    Serial.println("PSRAM: NOT FOUND — enable in Arduino IDE, use QVGA only");
+  }
 }
 
 void camera_power_on() {
@@ -285,7 +293,7 @@ bool init_camera() {
   config.pixel_format = PIXFORMAT_JPEG;
   config.grab_mode = CAMERA_GRAB_LATEST;
   config.jpeg_quality = CAM_JPEG_QUALITY;
-  config.fb_count = psramFound() ? 4 : 1;
+  config.fb_count = psramFound() ? CAM_FB_COUNT : 1;
   config.fb_location = psramFound() ? CAMERA_FB_IN_PSRAM : CAMERA_FB_IN_DRAM;
 
   if (init_camera_once(config)) return true;
@@ -327,10 +335,12 @@ void setup() {
   tune_camera_sensor();
   sensor_t* s = esp_camera_sensor_get();
   framesize_t fs = s ? s->status.framesize : FRAMESIZE_QVGA;
-  Serial.printf("Camera OK — %dx%d, stream ~%d FPS cap, JPEG q=%d\n",
-                (fs == FRAMESIZE_SVGA) ? 800 : (fs == FRAMESIZE_VGA) ? 640 : 320,
-                (fs == FRAMESIZE_SVGA) ? 600 : (fs == FRAMESIZE_VGA) ? 480 : 240,
-                STREAM_TARGET_FPS, CAM_JPEG_QUALITY);
+  const char* res =
+    fs == FRAMESIZE_UXGA ? "1600x1200" :
+    fs == FRAMESIZE_SVGA ? "800x600" :
+    fs == FRAMESIZE_VGA ? "640x480" : "320x240";
+  Serial.printf("Camera OK — %s, JPEG q=%d, fb=%d, stream cap ~%d FPS\n",
+                res, CAM_JPEG_QUALITY, psramFound() ? CAM_FB_COUNT : 1, STREAM_TARGET_FPS);
 
   start_camera_server();
   Serial.println("Ready:");
