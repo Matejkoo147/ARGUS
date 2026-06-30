@@ -32,6 +32,7 @@ export function CameraFeed({ entity, haUrl, token, label, slot }: CameraFeedProp
   const [errorDetail, setErrorDetail] = useState("");
   const [frameSrc, setFrameSrc] = useState<string | null>(null);
   const blobRef = useRef<string | null>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
   const nativeFailTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const nativeStreamUrl = useMemo(() => {
@@ -95,6 +96,27 @@ export function CameraFeed({ entity, haUrl, token, label, slot }: CameraFeedProp
     setFrameSrc(null);
     revokeBlob();
   }, [entity?.entity_id, haUrl, token, revokeBlob]);
+
+  // iOS MJPEG img streams often never fire onLoad — poll for decoded frames instead.
+  useEffect(() => {
+    if (mode !== "stream" || streamMethod !== "img" || !nativeStreamUrl) return;
+
+    const markLive = () => {
+      const img = imgRef.current;
+      if (!img || img.naturalWidth <= 0 || img.naturalHeight <= 0) return false;
+      clearNativeFailTimer();
+      setStatus("ok");
+      return true;
+    };
+
+    if (markLive()) return;
+
+    const id = setInterval(() => {
+      if (markLive()) clearInterval(id);
+    }, 250);
+
+    return () => clearInterval(id);
+  }, [mode, streamMethod, nativeStreamUrl, streamAttempt, clearNativeFailTimer]);
 
   // iOS: native MJPEG via img (Safari renders multipart/x-mixed-replace).
   useEffect(() => {
@@ -214,6 +236,8 @@ export function CameraFeed({ entity, haUrl, token, label, slot }: CameraFeedProp
     tryFetchStream("img stream failed");
   };
 
+  const showStreamLoading = status === "loading" && mode === "stream" && streamMethod === "fetch";
+
   return (
     <div className="card camera-slot">
       <div className="card-header">
@@ -236,12 +260,11 @@ export function CameraFeed({ entity, haUrl, token, label, slot }: CameraFeedProp
           </div>
         ) : imgSrc ? (
           <>
-            {status === "loading" && mode === "stream" && (
-              <div className="camera-feed-loading">
-                {streamMethod === "img" ? "Connecting live stream…" : "Connecting live stream…"}
-              </div>
+            {showStreamLoading && (
+              <div className="camera-feed-loading">Connecting live stream…</div>
             )}
             <img
+              ref={imgRef}
               key={useImgStream ? `${entity.entity_id}-img-${streamAttempt}` : frameSrc}
               className="camera-feed"
               src={imgSrc}
