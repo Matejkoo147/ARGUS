@@ -11,7 +11,7 @@ git_sync_deploy() {
     git reset --hard "HEAD"
   fi
   git reset --hard "origin/${branch}"
-  chmod +x scripts/argus-update.sh scripts/lib/deploy_common.sh scripts/mato-ufw-rules.sh scripts/check-ha-link.sh scripts/ha-update.sh 2>/dev/null || true
+  chmod +x scripts/argus-update.sh scripts/lib/deploy_common.sh scripts/mato-ufw-rules.sh scripts/check-ha-link.sh scripts/ha-update.sh scripts/generate-argus-ca.sh 2>/dev/null || true
 }
 
 preflight_bind_ip() {
@@ -267,7 +267,8 @@ print_access_hint() {
   echo "Done. Open (WireGuard must be connected):"
   echo "  ${url}"
   if [ "${ARGUS_HTTPS:-}" = "1" ]; then
-    echo "  (HTTPS — accept self-signed cert once for web microphone)"
+    echo "  (HTTPS — microphone needs secure context)"
+    echo "  iPhone icon shows A? Install tls/argus-ca.crt — see DEPLOY.md"
   fi
   echo ""
   echo "  HTTP fallback: http://${ARGUS_BIND_IP:-10.8.0.1}:${port}"

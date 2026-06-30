@@ -210,6 +210,25 @@ ARGUS_PUBLIC_URL=https://10.8.0.1:9443
 
 Then `argus-update`. Open **https://10.8.0.1:9443**, accept the self-signed certificate once.
 
+### iPhone home screen icon shows “A” (not the ARGUS eye)
+
+**This is not an icon file bug.** iOS Safari loads `https://10.8.0.1:9443/static/favicon-180.png` when you open that URL, but **Add to Home Screen refuses apple-touch-icon over untrusted HTTPS** and falls back to the first letter of “ARGUS”.
+
+**TradingBot (Kairos) works** because it uses plain **HTTP on `10.8.0.1:5000`** — no TLS. ARGUS uses **HTTPS on :9443** for the web microphone (secure context).
+
+**Quick proof:** open `http://10.8.0.1:9080/` → Share → Add to Home Screen. The eye icon should appear (shortcut opens HTTP; voice mic still needs HTTPS).
+
+**Fix (recommended):** install a **private CA** on your iPhone so `:9443` is fully trusted:
+
+```bash
+cd ~/apps/argus
+chmod +x scripts/generate-argus-ca.sh
+./scripts/generate-argus-ca.sh
+argus-update build
+```
+
+AirDrop **`tls/argus-ca.crt`** to your iPhone → install profile → **Settings → General → About → Certificate Trust Settings** → enable **ARGUS Home CA** → delete old shortcut → add again from `https://10.8.0.1:9443`.
+
 - **HA URL in ARGUS:** `https://10.8.0.1:9443/api/ha` (auto-filled from browser URL)
 - **Ollama CORS:** add both origins if needed:
   `Environment="OLLAMA_ORIGINS=http://10.8.0.1:9080,https://10.8.0.1:9443"`
