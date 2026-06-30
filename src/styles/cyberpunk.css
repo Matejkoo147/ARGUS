@@ -1521,6 +1521,23 @@ body.system-armed .argus-logo--glow,
   border-radius: 2px;
 }
 
+.camera-feed.hidden,
+.camera-feed-probe:not(.active) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.camera-feed-probe.active {
+  position: relative;
+  opacity: 1;
+  width: 100%;
+  height: auto;
+}
+
 .camera-feed-loading {
   position: absolute;
   inset: 0;

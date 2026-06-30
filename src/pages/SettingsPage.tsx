@@ -46,9 +46,10 @@ export function SettingsPage() {
 
   const handleSaveHa = async () => {
     const trimmedName = displayName.trim();
+    const trimmedToken = token.trim() || config?.token || "";
     await connect({
       url: url.trim(),
-      token: token.trim(),
+      token: trimmedToken,
       rememberSession,
       username: trimmedName || undefined,
     });
@@ -140,8 +141,8 @@ export function SettingsPage() {
           <div className="card-header"><i className="bi bi-camera-video" /> Home cameras</div>
           <div className="card-body">
             <p className="field-hint" style={{ marginBottom: "1rem", fontSize: "0.72rem", opacity: 0.85 }}>
-              Dashboard uses HA <strong>stream</strong> (not snapshots) so ESP32-CAM is not polled while live.
-              Set unused slots to <strong>None</strong>.
+              Dashboard loads via HA snapshots first, then upgrades to stream when available.
+              Set unused slots to <strong>None (disabled)</strong>.
             </p>
             <div className="field">
               <label>Camera slot 1</label>
