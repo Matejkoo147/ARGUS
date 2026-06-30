@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useHA } from "../context/HAContext";
 import { fetchCameraSnapshot, getCameraDisplayLabel, haCameraStreamUrl } from "../lib/cameras";
-import { prefersNativeMjpegImg, startHaMjpegStream } from "../lib/mjpegStream";
+import { prefersNativeMjpegImg, startHaMjpegStream, streamFailTimeoutMs } from "../lib/mjpegStream";
 import type { HAEntity } from "../types";
 
 interface CameraFeedProps {
@@ -14,22 +14,30 @@ interface CameraFeedProps {
 
 type FeedMode = "stream" | "snapshot";
 type FeedStatus = "loading" | "ok" | "error";
+type StreamMethod = "img" | "fetch";
 
 const SNAPSHOT_MS = 3000;
-const STREAM_FAIL_MS = 15000;
+const IMG_STREAM_RETRIES = 3;
+
+function initialStreamMethod(): StreamMethod {
+  return prefersNativeMjpegImg() ? "img" : "fetch";
+}
 
 export function CameraFeed({ entity, haUrl, token, label, slot }: CameraFeedProps) {
   const { entityLocations } = useHA();
-  const useNativeStream = useMemo(() => prefersNativeMjpegImg(), []);
   const [mode, setMode] = useState<FeedMode>("stream");
+  const [streamMethod, setStreamMethod] = useState<StreamMethod>(initialStreamMethod);
+  const [streamAttempt, setStreamAttempt] = useState(0);
   const [status, setStatus] = useState<FeedStatus>("loading");
   const [errorDetail, setErrorDetail] = useState("");
   const [frameSrc, setFrameSrc] = useState<string | null>(null);
   const blobRef = useRef<string | null>(null);
   const nativeFailTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const nativeStreamUrl =
-    entity && haUrl && token ? haCameraStreamUrl(haUrl, entity.entity_id, token) : null;
+  const nativeStreamUrl = useMemo(() => {
+    if (!entity || !haUrl || !token) return null;
+    return `${haCameraStreamUrl(haUrl, entity.entity_id, token)}&_r=${streamAttempt}`;
+  }, [entity?.entity_id, haUrl, token, streamAttempt]);
 
   const clearNativeFailTimer = useCallback(() => {
     if (nativeFailTimer.current) {
@@ -52,6 +60,16 @@ export function CameraFeed({ entity, haUrl, token, label, slot }: CameraFeedProp
     setStatus("loading");
   }, [entity?.entity_id, clearNativeFailTimer]);
 
+  const tryFetchStream = useCallback((reason: string) => {
+    console.warn("[ARGUS] camera img stream failed, trying fetch:", entity?.entity_id, reason);
+    clearNativeFailTimer();
+    setStreamMethod("fetch");
+    setStreamAttempt(0);
+    setStatus("loading");
+    setFrameSrc(null);
+    revokeBlob();
+  }, [entity?.entity_id, clearNativeFailTimer, revokeBlob]);
+
   const loadSnapshot = useCallback(async () => {
     if (!entity || !haUrl || !token) return;
     const result = await fetchCameraSnapshot(haUrl, entity.entity_id, token, entity);
@@ -70,28 +88,30 @@ export function CameraFeed({ entity, haUrl, token, label, slot }: CameraFeedProp
     if (!entity || !haUrl || !token) return;
 
     setMode("stream");
+    setStreamMethod(initialStreamMethod());
+    setStreamAttempt(0);
     setStatus("loading");
     setErrorDetail("");
     setFrameSrc(null);
     revokeBlob();
   }, [entity?.entity_id, haUrl, token, revokeBlob]);
 
-  // iOS: native MJPEG via img src (Safari handles multipart/x-mixed-replace).
+  // iOS: native MJPEG via img (Safari renders multipart/x-mixed-replace).
   useEffect(() => {
-    if (!useNativeStream || mode !== "stream" || !entity || !nativeStreamUrl) return;
+    if (mode !== "stream" || streamMethod !== "img" || !entity || !nativeStreamUrl) return;
 
     clearNativeFailTimer();
     nativeFailTimer.current = setTimeout(
-      () => switchToSnapshot("no frames received"),
-      STREAM_FAIL_MS,
+      () => tryFetchStream("no frames received"),
+      streamFailTimeoutMs(),
     );
 
     return clearNativeFailTimer;
-  }, [useNativeStream, mode, entity?.entity_id, nativeStreamUrl, switchToSnapshot, clearNativeFailTimer]);
+  }, [mode, streamMethod, entity?.entity_id, nativeStreamUrl, tryFetchStream, clearNativeFailTimer]);
 
-  // Desktop: live stream via fetch + Bearer auth.
+  // fetch + Bearer (desktop primary; iOS fallback after img).
   useEffect(() => {
-    if (useNativeStream || mode !== "stream" || !entity || !haUrl || !token) return;
+    if (mode !== "stream" || streamMethod !== "fetch" || !entity || !haUrl || !token) return;
 
     const stop = startHaMjpegStream(
       haUrl,
@@ -107,9 +127,8 @@ export function CameraFeed({ entity, haUrl, token, label, slot }: CameraFeedProp
     );
 
     return () => stop();
-  }, [useNativeStream, mode, entity?.entity_id, haUrl, token, revokeBlob, switchToSnapshot]);
+  }, [mode, streamMethod, entity?.entity_id, haUrl, token, revokeBlob, switchToSnapshot]);
 
-  // Snapshot polling only when stream fails.
   useEffect(() => {
     if (mode !== "snapshot" || !entity || !haUrl || !token) return;
 
@@ -118,12 +137,13 @@ export function CameraFeed({ entity, haUrl, token, label, slot }: CameraFeedProp
     return () => clearInterval(id);
   }, [mode, entity?.entity_id, haUrl, token, loadSnapshot]);
 
-  // Retry stream periodically while on snapshot fallback.
   useEffect(() => {
     if (mode !== "snapshot" || !entity || !haUrl || !token) return;
 
     const id = setInterval(() => {
       setMode("stream");
+      setStreamMethod(initialStreamMethod());
+      setStreamAttempt(0);
       setStatus("loading");
     }, 45000);
 
@@ -176,8 +196,8 @@ export function CameraFeed({ entity, haUrl, token, label, slot }: CameraFeedProp
 
   const live = entity.state === "idle" || entity.state === "streaming";
   const modeLabel = mode === "stream" ? "STREAM" : "SNAP";
-  const showNativeStream = mode === "stream" && useNativeStream && nativeStreamUrl;
-  const imgSrc = showNativeStream ? nativeStreamUrl : frameSrc;
+  const useImgStream = mode === "stream" && streamMethod === "img" && nativeStreamUrl;
+  const imgSrc = useImgStream ? nativeStreamUrl : frameSrc;
 
   const onNativeStreamLoad = () => {
     clearNativeFailTimer();
@@ -185,7 +205,13 @@ export function CameraFeed({ entity, haUrl, token, label, slot }: CameraFeedProp
   };
 
   const onNativeStreamError = () => {
-    switchToSnapshot("img stream failed");
+    clearNativeFailTimer();
+    if (streamAttempt + 1 < IMG_STREAM_RETRIES) {
+      setStreamAttempt((n) => n + 1);
+      setStatus("loading");
+      return;
+    }
+    tryFetchStream("img stream failed");
   };
 
   return (
@@ -211,15 +237,17 @@ export function CameraFeed({ entity, haUrl, token, label, slot }: CameraFeedProp
         ) : imgSrc ? (
           <>
             {status === "loading" && mode === "stream" && (
-              <div className="camera-feed-loading">Connecting live stream…</div>
+              <div className="camera-feed-loading">
+                {streamMethod === "img" ? "Connecting live stream…" : "Connecting live stream…"}
+              </div>
             )}
             <img
-              key={showNativeStream ? `${entity.entity_id}-stream` : frameSrc}
+              key={useImgStream ? `${entity.entity_id}-img-${streamAttempt}` : frameSrc}
               className="camera-feed"
               src={imgSrc}
               alt={displayName}
-              onLoad={showNativeStream ? onNativeStreamLoad : undefined}
-              onError={showNativeStream ? onNativeStreamError : undefined}
+              onLoad={useImgStream ? onNativeStreamLoad : undefined}
+              onError={useImgStream ? onNativeStreamError : undefined}
             />
           </>
         ) : (

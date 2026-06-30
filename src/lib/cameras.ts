@@ -74,7 +74,10 @@ function cameraPath(kind: "stream" | "snapshot", entityId: string): string {
 /** Live MJPEG via HA (browser img — needs nginx proxy_buffering off). */
 export function haCameraStreamUrl(haUrl: string, entityId: string, token: string): string {
   const base = resolveHaFetchUrl(haUrl, cameraPath("stream", entityId));
-  return `${base}?token=${encodeURIComponent(token)}&access_token=${encodeURIComponent(token)}`;
+  const qs = `token=${encodeURIComponent(token)}&access_token=${encodeURIComponent(token)}`;
+  const relative = `${base}?${qs}`;
+  if (typeof window === "undefined") return relative;
+  return relative.startsWith("http") ? relative : `${window.location.origin}${relative}`;
 }
 
 /** Single still frame URL (img src — less reliable than fetch with Bearer). */

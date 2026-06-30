@@ -1,6 +1,6 @@
 import { resolveHaFetchUrl } from "./haUrl";
 
-/** iOS Safari fails fetch()+ReadableStream MJPEG parsing — use <img src> like HA frontend. */
+/** iOS Safari — prefer native MJPEG img; fetch fallback uses Bearer like snapshots. */
 export function prefersNativeMjpegImg(): boolean {
   if (typeof navigator === "undefined") return false;
   const ua = navigator.userAgent;
@@ -8,6 +8,19 @@ export function prefersNativeMjpegImg(): boolean {
     /iPad|iPhone|iPod/.test(ua) ||
     (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
   );
+}
+
+export function streamFailTimeoutMs(): number {
+  return prefersNativeMjpegImg() ? 25_000 : 15_000;
+}
+
+function appendBytes(a: Uint8Array, b: Uint8Array): Uint8Array {
+  if (!a.length) return b;
+  if (!b.length) return a;
+  const out = new Uint8Array(a.length + b.length);
+  out.set(a);
+  out.set(b, a.length);
+  return out;
 }
 
 /** Extract complete JPEG images (SOI..EOI) from a byte buffer. */
@@ -65,7 +78,7 @@ export function startHaMjpegStream(
         ctrl.abort();
         onFail?.("no frames received");
       }
-    }, 15000);
+    }, streamFailTimeoutMs());
   };
 
   scheduleFail();
@@ -88,16 +101,16 @@ export function startHaMjpegStream(
       }
 
       const reader = res.body.getReader();
-      let pending = new Uint8Array(0);
+      let pending = new Uint8Array(0) as Uint8Array;
 
       while (!ctrl.signal.aborted) {
         const { done, value } = await reader.read();
         if (done) break;
         if (!value?.length) continue;
 
-        pending = Uint8Array.from([...pending, ...value]);
+        pending = appendBytes(pending, value) as Uint8Array;
         const extracted = extractJpegFrames(pending);
-        pending = Uint8Array.from(extracted.rest);
+        pending = new Uint8Array(extracted.rest) as Uint8Array;
 
         for (const frame of extracted.frames) {
           if (ctrl.signal.aborted) break;
@@ -105,8 +118,7 @@ export function startHaMjpegStream(
           if (failTimer) clearTimeout(failTimer);
           failTimer = null;
 
-          const copy = Uint8Array.from(frame);
-          const blob = new Blob([copy], { type: "image/jpeg" });
+          const blob = new Blob([new Uint8Array(frame)], { type: "image/jpeg" });
           const objectUrl = URL.createObjectURL(blob);
           if (lastUrl) URL.revokeObjectURL(lastUrl);
           lastUrl = objectUrl;

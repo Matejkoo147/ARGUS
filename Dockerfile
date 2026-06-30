@@ -13,6 +13,7 @@ RUN npm run build \
 FROM nginx:1.27-alpine
 RUN apk add --no-cache openssl \
   && mkdir -p /etc/nginx/argus /etc/nginx/argus-templates /etc/nginx/argus/tls
+COPY deploy/nginx/00-argus-maps.conf /etc/nginx/conf.d/00-argus-maps.conf
 COPY deploy/nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY deploy/nginx/argus-app-locations.conf /etc/nginx/argus/argus-app-locations.conf
 COPY deploy/nginx/ha-proxy.conf.template /etc/nginx/argus-templates/ha-proxy.conf.template
