@@ -176,7 +176,7 @@ wait_for_argus() {
 
 check_icon_assets_from_argus() {
   local icon out ct
-  for icon in favicon-180.png apple-touch-icon.png apple-touch-icon-precomposed.png; do
+  for icon in favicon-180.png apple-touch-icon.png; do
     out=$($COMPOSE exec -T argus wget -S -O /dev/null -T 10 "http://127.0.0.1:8080/${icon}" 2>&1 || true)
     if ! echo "$out" | grep -qE 'HTTP/1\.[01] 200'; then
       echo "    FAILED — /${icon} not reachable (iOS will show generic A icon)"
@@ -185,11 +185,21 @@ check_icon_assets_from_argus() {
     fi
     ct=$(echo "$out" | grep -i 'content-type:' | tail -1)
     if echo "$ct" | grep -qi 'text/html'; then
-      echo "    FAILED — /${icon} returns HTML instead of PNG (rebuild with: argus-update build --no-cache)"
+      echo "    FAILED — /${icon} returns HTML instead of PNG (rebuild with: docker compose build --no-cache)"
       return 1
     fi
   done
-  echo "    OK — home-screen icon PNGs served correctly"
+  out=$($COMPOSE exec -T argus wget -S -O /dev/null -T 10 "http://127.0.0.1:8080/manifest.json" 2>&1 || true)
+  if ! echo "$out" | grep -qE 'HTTP/1\.[01] 200'; then
+    echo "    FAILED — /manifest.json not reachable (Open as Web App needs this)"
+    return 1
+  fi
+  ct=$(echo "$out" | grep -i 'content-type:' | tail -1)
+  if echo "$ct" | grep -qi 'text/html'; then
+    echo "    FAILED — /manifest.json returns HTML instead of JSON"
+    return 1
+  fi
+  echo "    OK — home-screen icon PNGs + manifest.json served correctly"
   return 0
 }
 
