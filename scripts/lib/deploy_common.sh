@@ -203,6 +203,30 @@ check_icon_assets_from_argus() {
   return 0
 }
 
+check_tls_cert_hint() {
+  if [ "${ARGUS_HTTPS:-}" != "1" ]; then
+    return 0
+  fi
+  local cert issuer subject sans bind_ip
+  bind_ip="${ARGUS_BIND_IP:-10.8.0.1}"
+  cert=$($COMPOSE exec -T argus sh -c 'test -f /etc/nginx/argus/tls/argus.crt && echo argus.crt || echo cert.pem' 2>/dev/null || echo cert.pem)
+  issuer=$($COMPOSE exec -T argus sh -c "openssl x509 -in /etc/nginx/argus/tls/${cert} -noout -issuer 2>/dev/null" || true)
+  subject=$($COMPOSE exec -T argus sh -c "openssl x509 -in /etc/nginx/argus/tls/${cert} -noout -subject 2>/dev/null" || true)
+  sans=$($COMPOSE exec -T argus sh -c "openssl x509 -in /etc/nginx/argus/tls/${cert} -noout -ext subjectAltName 2>/dev/null" || true)
+  echo "    cert file: tls/${cert}"
+  echo "    subject  : ${subject:-unknown}"
+  echo "    issuer   : ${issuer:-unknown}"
+  if echo "$issuer" | grep -qi 'ARGUS Home CA'; then
+    if echo "$subject" | grep -q "${bind_ip}" || echo "$sans" | grep -q "${bind_ip}"; then
+      echo "    OK — CA-signed cert includes ${bind_ip} (enable Certificate Trust on iPhone)"
+    else
+      echo "    WARN — cert missing IP ${bind_ip} in CN/SAN → run: ./scripts/generate-argus-ca.sh --force"
+    fi
+    return 0
+  fi
+  echo "    WARN — auto self-signed cert (iPhone icon needs ./scripts/generate-argus-ca.sh --force)"
+}
+
 post_deploy_checks() {
   local port="${ARGUS_PORT:-9080}"
   local host="${ARGUS_BIND_IP:-127.0.0.1}"
@@ -216,6 +240,8 @@ post_deploy_checks() {
     local https_port="${ARGUS_HTTPS_PORT:-9443}"
     ss -tlnp 2>/dev/null | grep ":${https_port} " || sudo ss -tlnp 2>/dev/null | grep ":${https_port} " || true
     echo "==> HTTPS: enabled (microphone) — https://${host}:${https_port}"
+    echo "==> TLS cert (iPhone icon needs CA-signed + trusted):"
+    check_tls_cert_hint || true
   fi
 
   echo "==> Container status:"

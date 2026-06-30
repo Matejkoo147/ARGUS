@@ -222,12 +222,18 @@ Then `argus-update`. Open **https://10.8.0.1:9443**, accept the self-signed cert
 
 ```bash
 cd ~/apps/argus
-chmod +x scripts/generate-argus-ca.sh
-./scripts/generate-argus-ca.sh
+./scripts/generate-argus-ca.sh --force   # CN + SAN match https://10.8.0.1:9443
 argus-update build
 ```
 
-AirDrop **`tls/argus-ca.crt`** to your iPhone → install profile → **Settings → General → About → Certificate Trust Settings** → enable **ARGUS Home CA** → delete old shortcut → add again from `https://10.8.0.1:9443`.
+**On iPhone — critical steps:**
+
+1. Install **only** `tls/argus-ca.crt` (the CA root). **Do not** install `argus.crt` (server leaf) as a profile.
+2. **Settings → General → About → Certificate Trust Settings** → turn **ON** for **ARGUS Home CA** (installing the profile alone is not enough).
+3. Open `https://10.8.0.1:9443` → tap padlock → must **not** say “This certificate is not valid”.
+4. Delete old ARGUS shortcut → Add to Home Screen again.
+
+If the padlock still shows invalid, the home-screen icon will stay **A** even when `/apple-touch-icon.png` loads fine in Safari.
 
 - **HA URL in ARGUS:** `https://10.8.0.1:9443/api/ha` (auto-filled from browser URL)
 - **Ollama CORS:** add both origins if needed:

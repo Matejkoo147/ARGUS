@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
 # Generate a private CA + ARGUS server cert for trusted HTTPS on iPhone/iPad.
 #
-# Why: iOS loads /static/favicon-180.png in Safari, but "Add to Home Screen"
-# refuses apple-touch-icon over self-signed HTTPS (shows letter "A").
-# TradingBot works because it uses plain HTTP on :5000.
-#
-# After running this script:
-#   1. argus-update build
-#   2. AirDrop tls/argus-ca.crt to iPhone → Install profile
-#   3. Settings → General → About → Certificate Trust Settings → enable ARGUS CA
-#   4. Delete old ARGUS shortcut, add again from https://10.8.0.1:9443
+# iOS "Add to Home Screen" needs a VALID HTTPS connection for apple-touch-icon.
+# Browsing https://10.8.0.1:9443 with an untrusted / hostname-mismatched cert → letter "A".
 #
 # Usage (on mato-server):
-#   cd ~/apps/argus && chmod +x scripts/generate-argus-ca.sh && ./scripts/generate-argus-ca.sh
+#   ./scripts/generate-argus-ca.sh          # first time
+#   ./scripts/generate-argus-ca.sh --force  # regenerate (after IP change etc.)
+#
+# iPhone — install ONLY tls/argus-ca.crt (the CA root), NOT argus.crt:
+#   1. AirDrop argus-ca.crt → Install profile
+#   2. Settings → General → About → Certificate Trust Settings → ON for "ARGUS Home CA"
+#   3. argus-update build
+#   4. Safari padlock on https://10.8.0.1:9443 must NOT say "certificate is not valid"
+#   5. Delete old shortcut → Add to Home Screen
 
 set -euo pipefail
 
@@ -20,12 +21,24 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TLS="${ROOT}/tls"
 DAYS=825
 BIND_IP="${ARGUS_BIND_IP:-10.8.0.1}"
+FORCE=0
+
+for arg in "$@"; do
+  case "$arg" in
+    --force) FORCE=1 ;;
+    -h|--help)
+      echo "Usage: $0 [--force]"
+      exit 0
+      ;;
+    *) echo "Unknown option: $arg" >&2; exit 1 ;;
+  esac
+done
 
 mkdir -p "${TLS}"
 
-if [ -f "${TLS}/argus-ca.key" ] && [ -f "${TLS}/argus.crt" ]; then
-  echo "TLS already exists in tls/ (delete tls/argus-* to regenerate)."
-  echo "CA for iPhone: ${TLS}/argus-ca.crt"
+if [ -f "${TLS}/argus-ca.key" ] && [ -f "${TLS}/argus.crt" ] && [ "${FORCE}" -eq 0 ]; then
+  echo "TLS already exists in tls/ (use --force to regenerate)."
+  echo "CA for iPhone (install this ONLY): ${TLS}/argus-ca.crt"
   exit 0
 fi
 
@@ -35,19 +48,19 @@ openssl req -x509 -new -nodes -key "${TLS}/argus-ca.key" -sha256 -days "${DAYS}"
   -out "${TLS}/argus-ca.crt" \
   -subj "/CN=ARGUS Home CA/O=ARGUS/C=SK"
 
-echo "==> Creating server key + CSR for ${BIND_IP}..."
+echo "==> Creating server cert for https://${BIND_IP}:9443 ..."
 openssl genrsa -out "${TLS}/argus.key" 2048
 openssl req -new -key "${TLS}/argus.key" \
   -out "${TLS}/argus.csr" \
-  -subj "/CN=argus/O=ARGUS/C=SK"
+  -subj "/CN=${BIND_IP}/O=ARGUS/C=SK"
 
 cat > "${TLS}/argus.ext" <<EOF
-subjectAltName = IP:${BIND_IP},IP:127.0.0.1,DNS:argus.local
+subjectAltName = IP:${BIND_IP},IP:127.0.0.1,DNS:argus,DNS:argus.local
 extendedKeyUsage = serverAuth
 keyUsage = digitalSignature, keyEncipherment
+basicConstraints = CA:FALSE
 EOF
 
-echo "==> Signing server cert with CA..."
 openssl x509 -req -in "${TLS}/argus.csr" \
   -CA "${TLS}/argus-ca.crt" -CAkey "${TLS}/argus-ca.key" -CAcreateserial \
   -out "${TLS}/argus.crt" -days "${DAYS}" -sha256 \
@@ -57,14 +70,19 @@ chmod 600 "${TLS}/argus-ca.key" "${TLS}/argus.key"
 rm -f "${TLS}/argus.csr" "${TLS}/argus.ext" "${TLS}/argus-ca.srl"
 
 echo ""
+echo "==> Certificate details:"
+openssl x509 -in "${TLS}/argus.crt" -noout -subject -issuer -ext subjectAltName
+
+echo ""
 echo "Done."
-echo "  Server cert : tls/argus.crt  (nginx uses this on next argus-update)"
+echo "  Server cert : tls/argus.crt   (nginx uses this — do NOT install on iPhone)"
 echo "  Server key  : tls/argus.key"
-echo "  iPhone CA   : tls/argus-ca.crt  ← AirDrop this to your iPhone"
+echo "  iPhone CA   : tls/argus-ca.crt  ← install ONLY this file on iPhone"
 echo ""
 echo "On iPhone:"
-echo "  1. Install argus-ca.crt (Settings → Profile Downloaded → Install)"
-echo "  2. Settings → General → About → Certificate Trust Settings"
-echo "  3. Enable full trust for 'ARGUS Home CA'"
+echo "  1. Remove old ARGUS profiles if you installed argus.crt (leaf) by mistake"
+echo "  2. Install argus-ca.crt only"
+echo "  3. Settings → General → About → Certificate Trust Settings → enable ARGUS Home CA"
 echo "  4. argus-update build"
-echo "  5. Delete old ARGUS shortcut → Add to Home Screen from https://${BIND_IP}:9443"
+echo "  5. Open https://${BIND_IP}:9443 → padlock must be valid (no red X)"
+echo "  6. Add to Home Screen"

@@ -24,16 +24,16 @@ elif [ -f "${TLS_DIR}/cert.pem" ] && [ -f "${TLS_DIR}/key.pem" ]; then
   export ARGUS_TLS_CERT="${TLS_DIR}/cert.pem"
   export ARGUS_TLS_KEY="${TLS_DIR}/key.pem"
 elif [ ! -f "${TLS_DIR}/cert.pem" ]; then
-  echo "ARGUS: generating self-signed TLS cert for ${BIND_IP} (browser will warn once — accept to continue)"
+  echo "ARGUS: generating self-signed TLS cert for ${BIND_IP} (use ./scripts/generate-argus-ca.sh for iPhone icon)"
   openssl req -x509 -nodes -days 825 -newkey rsa:2048 \
     -keyout "${TLS_DIR}/key.pem" \
     -out "${TLS_DIR}/cert.pem" \
-    -subj "/CN=argus" \
-    -addext "subjectAltName=IP:${BIND_IP},DNS:argus.local" 2>/dev/null \
+    -subj "/CN=${BIND_IP}" \
+    -addext "subjectAltName=IP:${BIND_IP},DNS:argus,DNS:argus.local" 2>/dev/null \
     || openssl req -x509 -nodes -days 825 -newkey rsa:2048 \
       -keyout "${TLS_DIR}/key.pem" \
       -out "${TLS_DIR}/cert.pem" \
-      -subj "/CN=argus"
+      -subj "/CN=${BIND_IP}"
   export ARGUS_TLS_CERT="${TLS_DIR}/cert.pem"
   export ARGUS_TLS_KEY="${TLS_DIR}/key.pem"
 else
