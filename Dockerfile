@@ -5,9 +5,10 @@ COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
 RUN npm run build \
-  && test -f dist/favicon-180.png \
-  && test -f dist/apple-touch-icon.png \
-  && test -f dist/manifest.json
+  && test -f dist/static/favicon-180.png \
+  && test -f dist/static/favicon.ico \
+  && test -f dist/static/manifest.json \
+  && test -f dist/apple-touch-icon.png
 
 FROM nginx:1.27-alpine
 RUN apk add --no-cache openssl \
