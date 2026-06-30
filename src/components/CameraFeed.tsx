@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useHA } from "../context/HAContext";
 import {
   fetchCameraSnapshot,
+  getCameraDisplayLabel,
   haCameraStreamUrl,
-  probeCameraStream,
 } from "../lib/cameras";
 import type { HAEntity } from "../types";
-import { getFriendlyName } from "../types";
 
 interface CameraFeedProps {
   entity: HAEntity | null;
@@ -18,17 +18,20 @@ interface CameraFeedProps {
 type FeedMode = "stream" | "snapshot";
 type FeedStatus = "loading" | "ok" | "error";
 
-const SNAPSHOT_MS = 2500;
-const STREAM_STALL_MS = 7000;
+const SNAPSHOT_MS = 3000;
+const STREAM_RETRIES = 8;
+const STREAM_RETRY_MS = 2000;
 
 export function CameraFeed({ entity, haUrl, token, label, slot }: CameraFeedProps) {
+  const { entityAreas } = useHA();
   const [mode, setMode] = useState<FeedMode>("stream");
   const [status, setStatus] = useState<FeedStatus>("loading");
   const [errorDetail, setErrorDetail] = useState("");
   const [snapshotSrc, setSnapshotSrc] = useState<string | null>(null);
-  const streamRef = useRef<HTMLImageElement>(null);
+  const [streamKey, setStreamKey] = useState(0);
+  const streamAttempts = useRef(0);
   const blobRef = useRef<string | null>(null);
-  const stallTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const revokeBlob = useCallback(() => {
     if (blobRef.current) {
@@ -56,58 +59,63 @@ export function CameraFeed({ entity, haUrl, token, label, slot }: CameraFeedProp
     setStatus("ok");
   }, [entity, haUrl, token, revokeBlob]);
 
-  // Prefer live stream; fall back to snapshots only when stream is unavailable.
+  const retryStream = useCallback(() => {
+    if (retryTimer.current) clearTimeout(retryTimer.current);
+    retryTimer.current = setTimeout(() => {
+      setStreamKey((k) => k + 1);
+      setStatus("loading");
+    }, STREAM_RETRY_MS);
+  }, []);
+
+  const handleStreamError = useCallback(() => {
+    streamAttempts.current += 1;
+    if (streamAttempts.current < STREAM_RETRIES) {
+      retryStream();
+      return;
+    }
+    switchToSnapshot();
+  }, [retryStream, switchToSnapshot]);
+
+  // Always start with live stream — no pre-probe (probe fetch was falsely failing / blocking).
   useEffect(() => {
     if (!entity || !haUrl || !token) return;
 
+    setMode("stream");
     setStatus("loading");
     setErrorDetail("");
     setSnapshotSrc(null);
+    streamAttempts.current = 0;
+    setStreamKey(0);
     revokeBlob();
 
-    let cancelled = false;
-
-    void (async () => {
-      const streamOk = await probeCameraStream(haUrl, entity.entity_id, token);
-      if (cancelled) return;
-
-      if (streamOk) {
-        setMode("stream");
-        return;
-      }
-
-      setMode("snapshot");
-      await loadSnapshot();
-    })();
-
     return () => {
-      cancelled = true;
+      if (retryTimer.current) clearTimeout(retryTimer.current);
       revokeBlob();
     };
-  }, [entity?.entity_id, haUrl, token, loadSnapshot, revokeBlob]);
+  }, [entity?.entity_id, haUrl, token, revokeBlob]);
 
-  // Snapshot polling only while in snapshot mode (never competes with ESP32 stream).
+  // Snapshot polling only as last-resort fallback.
   useEffect(() => {
     if (!entity || mode !== "snapshot" || !haUrl || !token) return;
 
+    void loadSnapshot();
     const id = setInterval(() => void loadSnapshot(), SNAPSHOT_MS);
     return () => clearInterval(id);
   }, [entity?.entity_id, mode, haUrl, token, loadSnapshot]);
 
-  // If stream img never decodes a frame, fall back to snapshots.
+  // Periodically try to upgrade back from snapshots to stream.
   useEffect(() => {
-    if (!entity || mode !== "stream") return;
+    if (mode !== "snapshot" || !entity || !haUrl || !token) return;
 
-    if (stallTimer.current) clearTimeout(stallTimer.current);
-    stallTimer.current = setTimeout(() => {
-      const img = streamRef.current;
-      if (!img || img.naturalWidth === 0) switchToSnapshot();
-    }, STREAM_STALL_MS);
+    const id = setInterval(() => {
+      streamAttempts.current = 0;
+      setMode("stream");
+      setStatus("loading");
+      setStreamKey((k) => k + 1);
+    }, 45000);
 
-    return () => {
-      if (stallTimer.current) clearTimeout(stallTimer.current);
-    };
-  }, [entity?.entity_id, mode, switchToSnapshot]);
+    return () => clearInterval(id);
+  }, [mode, entity?.entity_id, haUrl, token]);
 
   useEffect(() => () => revokeBlob(), [revokeBlob]);
 
@@ -128,11 +136,13 @@ export function CameraFeed({ entity, haUrl, token, label, slot }: CameraFeedProp
     );
   }
 
+  const displayName = getCameraDisplayLabel(entity, entityAreas);
+
   if (!haUrl || !token) {
     return (
       <div className="card camera-slot">
         <div className="card-header">
-          <i className="bi bi-camera-video-fill" /> {getFriendlyName(entity)}
+          <i className="bi bi-camera-video-fill" /> {displayName}
         </div>
         <div className="card-body camera-slot-body">
           <div className="camera-placeholder">
@@ -144,14 +154,14 @@ export function CameraFeed({ entity, haUrl, token, label, slot }: CameraFeedProp
     );
   }
 
-  const streamSrc = haCameraStreamUrl(haUrl, entity.entity_id, token);
+  const streamSrc = `${haCameraStreamUrl(haUrl, entity.entity_id, token)}&_k=${streamKey}`;
   const live = entity.state === "idle" || entity.state === "streaming";
   const modeLabel = mode === "stream" ? "STREAM" : "SNAP";
 
   return (
     <div className="card camera-slot">
       <div className="card-header">
-        <i className="bi bi-camera-video-fill" /> {getFriendlyName(entity)}
+        <i className="bi bi-camera-video-fill" /> {displayName}
         <span className="camera-feed-badges">
           <span className="cam-mode">{modeLabel}</span>
           <span className={`cam-live ${live ? "on" : ""}`}>LIVE</span>
@@ -171,24 +181,21 @@ export function CameraFeed({ entity, haUrl, token, label, slot }: CameraFeedProp
         ) : mode === "stream" ? (
           <>
             {status === "loading" && (
-              <div className="camera-feed-loading">Starting live stream…</div>
+              <div className="camera-feed-loading">Connecting live stream…</div>
             )}
             <img
-              ref={streamRef}
+              key={streamKey}
               className="camera-feed"
               src={streamSrc}
-              alt={getFriendlyName(entity)}
-              onLoad={() => {
-                if (stallTimer.current) clearTimeout(stallTimer.current);
-                setStatus("ok");
-              }}
-              onError={() => switchToSnapshot()}
+              alt={displayName}
+              onLoad={() => setStatus("ok")}
+              onError={handleStreamError}
             />
           </>
         ) : snapshotSrc ? (
-          <img className="camera-feed" src={snapshotSrc} alt={getFriendlyName(entity)} />
+          <img className="camera-feed" src={snapshotSrc} alt={displayName} />
         ) : (
-          <div className="camera-feed-loading">Loading from Home Assistant…</div>
+          <div className="camera-feed-loading">Loading fallback snapshot…</div>
         )}
       </div>
     </div>

@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { useHA } from "../context/HAContext";
-import { CAMERA_SLOT_NONE } from "../lib/cameras";
+import { CAMERA_SLOT_NONE, getCameraDisplayLabel } from "../lib/cameras";
 import { maskToken } from "../lib/auth";
 import { loadOllamaConfig, saveOllamaConfig, testOllama, getDefaultOllama, type OllamaApiMode, type OllamaConfig } from "../lib/ollama";
 import { defaultHaProxyUrl } from "../lib/settingsMigrate";
-import { getDomain, getFriendlyName } from "../types";
+import { getDomain } from "../types";
 
 export function SettingsPage() {
-  const { config, connect, disconnect, status, refreshStates, entities, preferences, setDashboardCameras } = useHA();
+  const { config, connect, disconnect, status, refreshStates, entities, preferences, setDashboardCameras, entityAreas } = useHA();
   const [url, setUrl] = useState(config?.url ?? defaultHaProxyUrl());
   const [token, setToken] = useState(config?.token ?? "");
   const [displayName, setDisplayName] = useState(config?.username ?? "");
@@ -150,7 +150,7 @@ export function SettingsPage() {
                 <option value="">Auto (first camera)</option>
                 <option value={CAMERA_SLOT_NONE}>None (disabled)</option>
                 {cameras.map((c) => (
-                  <option key={c.entity_id} value={c.entity_id}>{getFriendlyName(c)}</option>
+                  <option key={c.entity_id} value={c.entity_id}>{getCameraDisplayLabel(c, entityAreas)}</option>
                 ))}
               </select>
             </div>
@@ -160,7 +160,7 @@ export function SettingsPage() {
                 <option value="">Auto (second camera)</option>
                 <option value={CAMERA_SLOT_NONE}>None (disabled)</option>
                 {cameras.map((c) => (
-                  <option key={c.entity_id} value={c.entity_id}>{getFriendlyName(c)}</option>
+                  <option key={c.entity_id} value={c.entity_id}>{getCameraDisplayLabel(c, entityAreas)}</option>
                 ))}
               </select>
             </div>

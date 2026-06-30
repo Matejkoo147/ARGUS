@@ -1,4 +1,4 @@
-import type { HAConfig, HAEntity, HALogbookEntry } from "../types";
+import type { HAConfig, HAEntity, HALogbookEntry, HAAreaRegistryEntry, HAEntityRegistryEntry } from "../types";
 import { haCameraSnapshotUrl, haCameraStreamUrl } from "./cameras";
 import { resolveHaFetchUrl, resolveHaWebSocketUrl } from "./haUrl";
 
@@ -152,6 +152,14 @@ export class HomeAssistantClient {
 
   async getCurrentUser(): Promise<HaCurrentUser> {
     return this.call<HaCurrentUser>("auth/current_user");
+  }
+
+  async getEntityRegistry() {
+    return this.call<HAEntityRegistryEntry[]>("config/entity_registry/list");
+  }
+
+  async getAreaRegistry() {
+    return this.call<HAAreaRegistryEntry[]>("config/area_registry/list");
   }
 
   async callService(

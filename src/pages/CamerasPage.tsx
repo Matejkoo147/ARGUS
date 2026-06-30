@@ -1,9 +1,10 @@
 import { CameraFeed } from "../components/CameraFeed";
 import { useHA } from "../context/HAContext";
-import { getDomain, getFriendlyName } from "../types";
+import { getCameraDisplayLabel } from "../lib/cameras";
+import { getDomain } from "../types";
 
 export function CamerasPage() {
-  const { entities, config } = useHA();
+  const { entities, config, entityAreas } = useHA();
   const cameras = entities.filter((e) => getDomain(e.entity_id) === "camera");
   const haUrl = config?.url ?? "";
   const token = config?.token ?? "";
@@ -30,7 +31,7 @@ export function CamerasPage() {
               entity={cam}
               haUrl={haUrl}
               token={token}
-              label={getFriendlyName(cam)}
+              label={getCameraDisplayLabel(cam, entityAreas)}
               slot={i % 2 === 0 ? 1 : 2}
             />
           ))}

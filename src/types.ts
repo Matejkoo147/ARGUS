@@ -35,6 +35,19 @@ export interface HALogbookEntry {
   domain?: string;
 }
 
+/** Home Assistant entity registry entry (area assignment). */
+export interface HAEntityRegistryEntry {
+  entity_id: string;
+  area_id: string | null;
+  name?: string | null;
+}
+
+/** Home Assistant area registry entry (room name). */
+export interface HAAreaRegistryEntry {
+  area_id: string;
+  name: string;
+}
+
 export type ConnectionStatus = "disconnected" | "connecting" | "connected" | "error";
 
 export interface SecuritySummary {

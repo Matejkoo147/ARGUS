@@ -1,8 +1,54 @@
 import { resolveHaFetchUrl } from "./haUrl";
 import type { HAEntity } from "../types";
+import { getFriendlyName } from "../types";
 
 /** Stored in preferences to disable a dashboard camera slot. */
 export const CAMERA_SLOT_NONE = "none";
+
+const IP_LIKE = /^\d{1,3}(?:[._]\d{1,3}){3}$/;
+
+function isIpLike(value: string): boolean {
+  return IP_LIKE.test(value) || IP_LIKE.test(value.replace(/\./g, "_"));
+}
+
+/** Pull IPv4 from entity_id (camera.192_168_0_111) or friendly name. */
+export function extractCameraIp(entity: HAEntity): string | null {
+  const slug = entity.entity_id.split(".")[1] ?? "";
+  if (IP_LIKE.test(slug)) return slug.replace(/_/g, ".");
+
+  const fn = entity.attributes.friendly_name;
+  if (typeof fn === "string" && IP_LIKE.test(fn)) return fn.replace(/_/g, ".");
+
+  for (const key of ["still_image_url", "stream_source"] as const) {
+    const url = entity.attributes[key];
+    if (typeof url !== "string") continue;
+    const m = url.match(/https?:\/\/(\d{1,3}(?:\.\d{1,3}){3})/);
+    if (m) return m[1];
+  }
+
+  return null;
+}
+
+/** Display label: HA area/room name + camera IP, e.g. "Kuchyňa - 192.168.0.111". */
+export function getCameraDisplayLabel(
+  entity: HAEntity,
+  entityAreas: Record<string, string>,
+): string {
+  const ip = extractCameraIp(entity);
+  const friendly = getFriendlyName(entity);
+  const area =
+    entityAreas[entity.entity_id] ||
+    (typeof entity.attributes.area === "string" ? entity.attributes.area : null);
+
+  const location =
+    area ||
+    (friendly && !isIpLike(friendly) ? friendly : null);
+
+  if (location && ip) return `${location} - ${ip}`;
+  if (location) return location;
+  if (ip) return ip;
+  return friendly;
+}
 
 export function resolveDashboardCamera(
   pref: string,
@@ -52,29 +98,6 @@ export function haEntityPictureUrl(haUrl: string, entity: HAEntity): string | nu
 }
 
 export type CameraFetchResult = { ok: true; url: string } | { ok: false; error: string };
-
-/** Check whether HA exposes an MJPEG stream for this camera (via ARGUS proxy). */
-export async function probeCameraStream(
-  haUrl: string,
-  entityId: string,
-  token: string,
-): Promise<boolean> {
-  const url = resolveHaFetchUrl(haUrl, cameraPath("stream", entityId));
-  const ctrl = new AbortController();
-  try {
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-      signal: ctrl.signal,
-    });
-    const ct = res.headers.get("content-type") ?? "";
-    ctrl.abort();
-    return res.ok && ct.includes("multipart");
-  } catch {
-    ctrl.abort();
-    return false;
-  }
-}
 
 /** Fetch one JPEG with Bearer auth — same method HA frontend uses. */
 export async function fetchCameraSnapshot(
