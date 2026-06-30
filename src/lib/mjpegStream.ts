@@ -1,5 +1,15 @@
 import { resolveHaFetchUrl } from "./haUrl";
 
+/** iOS Safari fails fetch()+ReadableStream MJPEG parsing — use <img src> like HA frontend. */
+export function prefersNativeMjpegImg(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  return (
+    /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
+}
+
 /** Extract complete JPEG images (SOI..EOI) from a byte buffer. */
 function extractJpegFrames(buf: Uint8Array): { frames: Uint8Array[]; rest: Uint8Array } {
   const frames: Uint8Array[] = [];
