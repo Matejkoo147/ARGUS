@@ -17,16 +17,16 @@ const char* WIFI_PASS = "20032009";
 
 // -------- Video quality (edit here) --------
 // AI Thinker OV2640 presets (lower JPEG number = sharper, larger frames, lower FPS):
-//   VGA  640x480 q10  ~10-15 FPS  <- default (best balance for ARGUS)
-//   QVGA 320x240 q12  ~20-25 FPS  <- max smoothness, lower detail
-//   SVGA 800x600 q10  ~5-8 FPS    <- more detail, choppier
+//   VGA  640x480 q12  ~15-18 FPS  <- default (ARGUS); q12 = smaller JPEGs, less WiFi lag
+//   QVGA 320x240 q12  ~20-25 FPS  <- max smoothness
+//   SVGA 800x600 q10  ~5-8 FPS
 //
-// Change CAM_FRAME_SIZE + CAM_JPEG_QUALITY + STREAM_TARGET_FPS together.
-#define STREAM_TARGET_FPS  12     // VGA sweet spot on WiFi; try 15 if stable
-#define CAM_JPEG_QUALITY   10     // 10-12 for VGA; avoid below 10 (huge frames)
+// STREAM_TARGET_FPS: soft ceiling only — set 0 to send as fast as WiFi allows.
+#define STREAM_TARGET_FPS  15
+#define CAM_JPEG_QUALITY   12     // 12-14 = smaller frames, often feels faster than q10 on WiFi
 #define CAM_FRAME_SIZE     FRAMESIZE_VGA
-#define CAM_FB_COUNT       2      // double-buffer — best streaming FPS with PSRAM
-#define STREAM_CHUNK_SIZE  8192
+#define CAM_FB_COUNT       2
+#define STREAM_CHUNK_SIZE  4096   // smaller chunks = smoother TCP over WiFi extender
 // -------------------------------------------
 
 #define PWDN_GPIO_NUM     32
@@ -143,12 +143,15 @@ static esp_err_t stream_handler(httpd_req_t* req) {
   httpd_resp_set_hdr(req, "Cache-Control", "no-store");
 
   int fail_streak = 0;
+#if STREAM_TARGET_FPS > 0
   const uint32_t frame_ms = 1000 / STREAM_TARGET_FPS;
+#endif
 
   while (fail_streak < 5) {
+#if STREAM_TARGET_FPS > 0
     uint32_t frame_start = millis();
+#endif
 
-    // Skip this tick instead of blocking for seconds (avoids freeze-then-catch-up).
     if (xSemaphoreTake(camera_mutex, 0) != pdTRUE) {
       vTaskDelay(1);
       continue;
@@ -158,32 +161,27 @@ static esp_err_t stream_handler(httpd_req_t* req) {
     if (!fb) {
       xSemaphoreGive(camera_mutex);
       fail_streak++;
-      vTaskDelay(10 / portTICK_PERIOD_MS);
-      continue;
-    }
-
-    frame_copy fc = copy_frame_to_ram(fb);
-    esp_camera_fb_return(fb);
-    xSemaphoreGive(camera_mutex);
-
-    if (!fc.data) {
-      fail_streak++;
+      vTaskDelay(5 / portTICK_PERIOD_MS);
       continue;
     }
     fail_streak = 0;
 
-    size_t hlen = snprintf(part_buf, sizeof(part_buf), STREAM_PART, fc.len);
+    // Send straight from camera buffer — skips memcpy, higher FPS at VGA.
+    size_t hlen = snprintf(part_buf, sizeof(part_buf), STREAM_PART, fb->len);
     res = httpd_resp_send_chunk(req, STREAM_BOUNDARY, strlen(STREAM_BOUNDARY));
     if (res == ESP_OK) res = httpd_resp_send_chunk(req, part_buf, hlen);
-    if (res == ESP_OK) res = send_jpeg_chunks(req, fc.data, fc.len);
-    free_frame_copy(&fc);
+    if (res == ESP_OK) res = send_jpeg_chunks(req, fb->buf, fb->len);
+    esp_camera_fb_return(fb);
+    xSemaphoreGive(camera_mutex);
 
     if (res != ESP_OK) break;
 
+#if STREAM_TARGET_FPS > 0
     uint32_t elapsed = millis() - frame_start;
     if (elapsed < frame_ms) {
       vTaskDelay(pdMS_TO_TICKS(frame_ms - elapsed));
     }
+#endif
   }
   return res;
 }
@@ -218,6 +216,8 @@ void tune_camera_sensor() {
   s->set_ae_level(s, 1);       // slightly brighter in dim rooms
   s->set_whitebal(s, 1);
   s->set_awb_gain(s, 1);
+  s->set_dcw(s, 1);            // hardware downscale — faster JPEG at VGA
+  s->set_lenc(s, 1);
 }
 
 void start_camera_server() {
@@ -339,8 +339,13 @@ void setup() {
     fs == FRAMESIZE_UXGA ? "1600x1200" :
     fs == FRAMESIZE_SVGA ? "800x600" :
     fs == FRAMESIZE_VGA ? "640x480" : "320x240";
-  Serial.printf("Camera OK — %s, JPEG q=%d, fb=%d, stream cap ~%d FPS\n",
-                res, CAM_JPEG_QUALITY, psramFound() ? CAM_FB_COUNT : 1, STREAM_TARGET_FPS);
+  if (STREAM_TARGET_FPS > 0) {
+    Serial.printf("Camera OK — %s, JPEG q=%d, fb=%d, stream cap ~%d FPS\n",
+                  res, CAM_JPEG_QUALITY, psramFound() ? CAM_FB_COUNT : 1, STREAM_TARGET_FPS);
+  } else {
+    Serial.printf("Camera OK — %s, JPEG q=%d, fb=%d, stream cap max (no pacing)\n",
+                  res, CAM_JPEG_QUALITY, psramFound() ? CAM_FB_COUNT : 1);
+  }
 
   start_camera_server();
   Serial.println("Ready:");

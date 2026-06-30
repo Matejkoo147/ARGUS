@@ -735,10 +735,6 @@ body.system-armed .argus-logo--glow,
   font-size: 0.62rem;
   letter-spacing: 0.04em;
   color: var(--muted);
-  max-width: 5.5rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .weather-chip { display: inline-flex; align-items: center; gap: 0.35rem; }
 .weather-chip .bi { color: var(--neon-amber); }

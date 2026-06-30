@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useHA } from "../context/HAContext";
 import { useArgusMic } from "../hooks/useArgusMic";
+import { buildArgusSystemPrompt, runArgusLocalCommand } from "../lib/argusVoice";
 import { askOllama, loadOllamaConfig, type OllamaConfig } from "../lib/ollama";
-import { getDomain, getFriendlyName } from "../types";
 
 const VOICE_MUTE_KEY = "argus_voice_muted";
 
@@ -27,7 +27,7 @@ function formatMeta(source: ReplySource, model?: string, latencyMs?: number, tok
 }
 
 export function VoicePage() {
-  const { entities, summary, callService } = useHA();
+  const { entities, summary, callService, entityLocations } = useHA();
   const navigate = useNavigate();
   const [ollama, setOllama] = useState<OllamaConfig | null>(() => loadOllamaConfig());
   const [input, setInput] = useState("");
@@ -92,42 +92,14 @@ export function VoicePage() {
 
   const runLocalCommand = useCallback(
     async (text: string): Promise<string | null> => {
-      const lower = text.toLowerCase();
-
-      if (/\b(status|how'?s the perimeter|system status)\b/.test(lower)) {
-        return `Perimeter status: ${summary.alarmState}. ${summary.motionActive} motion active, ${summary.doorOpen} doors open. ${summary.cameraCount} cameras, health ${summary.systemHealth}%.`;
-      }
-      if (lower.includes("arm away")) {
-        const alarm = entities.find((e) => e.entity_id.startsWith("alarm_control_panel."));
-        if (alarm) {
-          await callService("alarm_control_panel", "arm_away", { code: "" }, { entity_id: alarm.entity_id });
-          return "Arming away. Perimeter secured.";
-        }
-        return "No alarm panel in Home Assistant.";
-      }
-      if (lower.includes("disarm")) {
-        const alarm = entities.find((e) => e.entity_id.startsWith("alarm_control_panel."));
-        if (alarm) {
-          await callService("alarm_control_panel", "disarm", { code: "" }, { entity_id: alarm.entity_id });
-          return "System disarmed. Welcome home.";
-        }
-        return "No alarm panel found.";
-      }
-      if (/\b(motion|sensor)\b/.test(lower) && !lower.includes("model")) {
-        const active = entities.filter((e) => getDomain(e.entity_id) === "binary_sensor" && e.state === "on");
-        return active.length
-          ? `Active: ${active.map((e) => getFriendlyName(e)).join(", ")}`
-          : "All clear. No sensors triggered.";
-      }
-      if (lower.includes("camera") && !lower.includes("model")) {
-        const cams = entities.filter((e) => getDomain(e.entity_id) === "camera");
-        return cams.length
-          ? `${cams.length} camera(s): ${cams.map((e) => getFriendlyName(e)).join(", ")}`
-          : "No cameras detected.";
-      }
-      return null;
+      return runArgusLocalCommand(text, {
+        entities,
+        summary,
+        entityLocations,
+        callService,
+      });
     },
-    [entities, summary, callService]
+    [entities, summary, entityLocations, callService],
   );
 
   const respond = useCallback(
@@ -146,11 +118,11 @@ export function VoicePage() {
       } else if (ollama) {
         setBusyLabel(`Running ${ollama.model}…`);
         try {
-          const context = `You are ARGUS, a home security AI assistant. You run on the local Ollama model "${ollama.model}" on the user's home server — when asked what model you use, always say "${ollama.model}".
-
-Current home status: alarm=${summary.alarmState}, motion sensors active=${summary.motionActive}, doors open=${summary.doorOpen}, cameras=${summary.cameraCount}, sensor health=${summary.systemHealth}%.
-
-You help with home security questions. For non-security topics you may answer briefly, but mention you're primarily a security assistant. Be concise (2-4 sentences). You cannot arm/disarm unless the user explicitly says those commands.`;
+          const context = buildArgusSystemPrompt(ollama.model, {
+            entities,
+            summary,
+            entityLocations,
+          });
 
           const result = await askOllama(ollama, text, context);
           reply = result.text || "(empty response from model)";
@@ -172,7 +144,7 @@ You help with home security questions. For non-security topics you may answer br
       setBusyLabel("");
       setBusy(false);
     },
-    [ollama, runLocalCommand, summary, speak]
+    [ollama, runLocalCommand, entities, summary, entityLocations, speak],
   );
 
   const sendMessage = async (text: string) => {
