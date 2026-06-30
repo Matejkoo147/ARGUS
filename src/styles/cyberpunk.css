@@ -1505,7 +1505,32 @@ body.system-armed .argus-logo--glow,
 .entity-tile.off .entity-state { color: var(--muted); }
 .entity-tile.alert .entity-state { color: var(--red); }
 
-.camera-feed { width: 100%; aspect-ratio: 16/9; background: #000; border: 1px solid var(--border); object-fit: cover; }
+.camera-feed { width: 100%; aspect-ratio: 16/9; background: #000; border: 1px solid var(--border); object-fit: cover; display: block; }
+
+.camera-feed-body { padding: 0 !important; position: relative; min-height: 120px; }
+
+.camera-feed-badges { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+
+.cam-mode {
+  font-family: Orbitron, sans-serif;
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+
+.camera-feed-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 0.75rem;
+  pointer-events: none;
+}
 
 .camera-slot-body {
   padding: 0 !important;

@@ -17,9 +17,14 @@ export function resolveDashboardCamera(
   return cameras[autoIndex] ?? null;
 }
 
+function cameraPath(kind: "stream" | "snapshot", entityId: string): string {
+  const route = kind === "stream" ? "camera_proxy_stream" : "camera_proxy";
+  return `/api/${route}/${entityId}`;
+}
+
 /** Live MJPEG via HA — one stream to the camera (no snapshot polling). */
 export function haCameraStreamUrl(haUrl: string, entityId: string, token: string): string {
-  return `${resolveHaFetchUrl(haUrl, `/api/camera_proxy_stream/${entityId}`)}?token=${encodeURIComponent(token)}`;
+  return `${resolveHaFetchUrl(haUrl, cameraPath("stream", entityId))}?token=${encodeURIComponent(token)}`;
 }
 
 /** Single still frame — use sparingly (each call hits the camera still-image URL). */
@@ -30,5 +35,46 @@ export function haCameraSnapshotUrl(
   cacheBust?: number,
 ): string {
   const t = cacheBust ?? Date.now();
-  return `${resolveHaFetchUrl(haUrl, `/api/camera_proxy/${entityId}`)}?token=${encodeURIComponent(token)}&t=${t}`;
+  return `${resolveHaFetchUrl(haUrl, cameraPath("snapshot", entityId))}?token=${encodeURIComponent(token)}&t=${t}`;
+}
+
+/** Fetch one JPEG snapshot with Bearer auth (works even when img+token query fails). */
+export async function fetchCameraSnapshot(
+  haUrl: string,
+  entityId: string,
+  token: string,
+): Promise<string | null> {
+  const url = resolveHaFetchUrl(haUrl, cameraPath("snapshot", entityId));
+  try {
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const ct = res.headers.get("content-type") ?? "";
+    if (!ct.includes("image")) return null;
+    const blob = await res.blob();
+    if (!blob.size) return null;
+    return URL.createObjectURL(blob);
+  } catch {
+    return null;
+  }
+}
+
+/** Quick check whether HA can reach the camera still-image endpoint. */
+export async function probeCameraSnapshot(
+  haUrl: string,
+  entityId: string,
+  token: string,
+): Promise<boolean> {
+  const url = resolveHaFetchUrl(haUrl, cameraPath("snapshot", entityId));
+  try {
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
