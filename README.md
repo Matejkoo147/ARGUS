@@ -53,7 +53,8 @@ Serve the `dist/` folder with nginx, Caddy, or the HA **nginx** add-on.
 
 **Home Assistant on mato-server:** see **[HA_SETUP.md](./HA_SETUP.md)** — install HA next to ARGUS and fix the login/proxy URL.
 
-**ESP32-CAM live feed:** see **[ESP32_CAM.md](./ESP32_CAM.md)** — flash firmware, add to HA, assign cameras in ARGUS.
+**ESP32-CAM live feed:** see **[ESP32_CAM.md](./ESP32_CAM.md)** — Arduino IDE sketch in `deploy/arduino/`.  
+**Reolink / IP camera later:** see **[CAM_ALTERNATIVES.md](./CAM_ALTERNATIVES.md)**.
 
 Example nginx on the Pi:
 

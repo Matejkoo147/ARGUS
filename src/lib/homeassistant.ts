@@ -1,4 +1,5 @@
 import type { HAConfig, HAEntity, HALogbookEntry } from "../types";
+import { haCameraSnapshotUrl, haCameraStreamUrl } from "./cameras";
 import { resolveHaFetchUrl, resolveHaWebSocketUrl } from "./haUrl";
 
 export interface HaCurrentUser {
@@ -180,7 +181,11 @@ export class HomeAssistantClient {
   }
 
   getCameraSnapshotUrl(entityId: string): string {
-    return `${resolveHaFetchUrl(this.config.url, `/api/camera_proxy/${entityId}`)}?token=${this.config.token}`;
+    return haCameraSnapshotUrl(this.config.url, entityId, this.config.token);
+  }
+
+  getCameraStreamUrl(entityId: string): string {
+    return haCameraStreamUrl(this.config.url, entityId, this.config.token);
   }
 
   toggleEntity(entity: HAEntity): Promise<unknown> {

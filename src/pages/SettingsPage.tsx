@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useHA } from "../context/HAContext";
+import { CAMERA_SLOT_NONE } from "../lib/cameras";
 import { maskToken } from "../lib/auth";
 import { loadOllamaConfig, saveOllamaConfig, testOllama, getDefaultOllama, type OllamaApiMode, type OllamaConfig } from "../lib/ollama";
 import { defaultHaProxyUrl } from "../lib/settingsMigrate";
@@ -23,6 +24,11 @@ export function SettingsPage() {
   const [cam2, setCam2] = useState(preferences.dashboardCameras[1]);
 
   const cameras = entities.filter((e) => getDomain(e.entity_id) === "camera");
+
+  useEffect(() => {
+    setCam1(preferences.dashboardCameras[0]);
+    setCam2(preferences.dashboardCameras[1]);
+  }, [preferences.dashboardCameras]);
 
   useEffect(() => {
     const o = loadOllamaConfig();
@@ -133,10 +139,15 @@ export function SettingsPage() {
         <div className="card">
           <div className="card-header"><i className="bi bi-camera-video" /> Home cameras</div>
           <div className="card-body">
+            <p className="field-hint" style={{ marginBottom: "1rem", fontSize: "0.72rem", opacity: 0.85 }}>
+              Dashboard uses HA <strong>stream</strong> (not snapshots) so ESP32-CAM is not polled while live.
+              Set unused slots to <strong>None</strong>.
+            </p>
             <div className="field">
               <label>Camera slot 1</label>
               <select className="cyber-select" value={cam1} onChange={(e) => setCam1(e.target.value)}>
                 <option value="">Auto (first camera)</option>
+                <option value={CAMERA_SLOT_NONE}>None (disabled)</option>
                 {cameras.map((c) => (
                   <option key={c.entity_id} value={c.entity_id}>{getFriendlyName(c)}</option>
                 ))}
@@ -146,6 +157,7 @@ export function SettingsPage() {
               <label>Camera slot 2</label>
               <select className="cyber-select" value={cam2} onChange={(e) => setCam2(e.target.value)}>
                 <option value="">Auto (second camera)</option>
+                <option value={CAMERA_SLOT_NONE}>None (disabled)</option>
                 {cameras.map((c) => (
                   <option key={c.entity_id} value={c.entity_id}>{getFriendlyName(c)}</option>
                 ))}

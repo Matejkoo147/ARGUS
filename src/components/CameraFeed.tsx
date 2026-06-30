@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { resolveHaFetchUrl } from "../lib/haUrl";
+import { useState } from "react";
+import { haCameraStreamUrl } from "../lib/cameras";
 import type { HAEntity } from "../types";
 import { getFriendlyName } from "../types";
 
@@ -12,13 +12,7 @@ interface CameraFeedProps {
 }
 
 export function CameraFeed({ entity, haUrl, token, label, slot }: CameraFeedProps) {
-  const [tick, setTick] = useState(0);
-
-  useEffect(() => {
-    if (!entity) return;
-    const id = setInterval(() => setTick((t) => t + 1), 2000);
-    return () => clearInterval(id);
-  }, [entity]);
+  const [streamError, setStreamError] = useState(false);
 
   if (!entity) {
     return (
@@ -30,32 +24,43 @@ export function CameraFeed({ entity, haUrl, token, label, slot }: CameraFeedProp
           <div className="camera-placeholder">
             <i className="bi bi-camera-video-off camera-placeholder-icon" aria-hidden />
             <div className="camera-placeholder-title">No camera assigned</div>
-            <div className="camera-placeholder-hint">Add a camera in Home Assistant → Settings</div>
+            <div className="camera-placeholder-hint">Settings → Home cameras → set slot or None</div>
           </div>
         </div>
       </div>
     );
   }
 
-  const base = resolveHaFetchUrl(haUrl, `/api/camera_proxy/${entity.entity_id}`);
-  const src = `${base}?token=${token}&t=${tick}`;
+  const src = haCameraStreamUrl(haUrl, entity.entity_id, token);
+  const live = entity.state === "idle" || entity.state === "streaming";
 
   return (
     <div className="card camera-slot">
       <div className="card-header">
         <i className="bi bi-camera-video-fill" /> {getFriendlyName(entity)}
-        <span className={`cam-live ${entity.state === "idle" || entity.state === "streaming" ? "on" : ""}`}>LIVE</span>
+        <span className={`cam-live ${live ? "on" : ""}`}>LIVE</span>
       </div>
       <div className="card-body" style={{ padding: 0 }}>
-        <img
-          className="camera-feed"
-          src={src}
-          alt={getFriendlyName(entity)}
-          onError={(e) => {
-            const img = e.target as HTMLImageElement;
-            img.style.display = "none";
-          }}
-        />
+        {streamError ? (
+          <div className="camera-slot-body">
+            <div className="camera-placeholder">
+              <i className="bi bi-exclamation-triangle camera-placeholder-icon" aria-hidden />
+              <div className="camera-placeholder-title">Stream unavailable</div>
+              <div className="camera-placeholder-hint">
+                In HA Generic Camera set a <strong>Stream source URL</strong> (e.g. <code>/stream</code>).
+                Close other tabs hitting the ESP32 directly.
+              </div>
+            </div>
+          </div>
+        ) : (
+          <img
+            className="camera-feed"
+            src={src}
+            alt={getFriendlyName(entity)}
+            onError={() => setStreamError(true)}
+            onLoad={() => setStreamError(false)}
+          />
+        )}
       </div>
     </div>
   );

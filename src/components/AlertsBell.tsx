@@ -8,7 +8,7 @@ import {
   mergeAlerts,
   type ArgusAlert,
 } from "../lib/alerts";
-import { resolveHaFetchUrl } from "../lib/haUrl";
+import { haCameraSnapshotUrl } from "../lib/cameras";
 
 function formatAlertTime(d: Date): string {
   const now = Date.now();
@@ -125,7 +125,7 @@ export function AlertsBell() {
             {alerts.map((alert) => {
               const thumb =
                 alert.cameraEntityId && haUrl && token
-                  ? `${resolveHaFetchUrl(haUrl, `/api/camera_proxy/${alert.cameraEntityId}`)}?token=${token}&t=${alert.timestamp.getTime()}`
+                  ? haCameraSnapshotUrl(haUrl, alert.cameraEntityId, token, alert.timestamp.getTime())
                   : null;
 
               return (
