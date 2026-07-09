@@ -1882,3 +1882,111 @@ body.system-armed .argus-logo--glow,
   color: var(--muted);
   text-transform: lowercase;
 }
+
+/* Sensors page — larger chips with entity id */
+.sensor-chip-lg {
+  min-height: 72px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 0.65rem 0.75rem;
+}
+.sensors-page-grid {
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
+.sensor-chip-entity {
+  font-size: 0.55rem;
+  color: var(--muted);
+  opacity: 0.65;
+  word-break: break-all;
+  line-height: 1.2;
+}
+
+/* History log formatting */
+.log-muted { color: var(--muted); opacity: 0.55; }
+.log-ts { color: var(--muted); margin-right: 0.5rem; }
+.log-kind {
+  display: inline-block;
+  font-family: Orbitron, sans-serif;
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  color: var(--neon-cyan);
+  margin-right: 0.5rem;
+  opacity: 0.7;
+}
+.btn-cyber.action.active {
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.4);
+  border-color: var(--neon-green);
+  color: var(--neon-green);
+}
+.btn-cyber-mini.active {
+  border-color: var(--neon-green);
+  color: var(--neon-green);
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.35);
+}
+
+/* Voice commands dropdown */
+.voice-commands-dropdown {
+  position: relative;
+}
+.voice-commands-dropdown summary {
+  list-style: none;
+}
+.voice-commands-dropdown summary::-webkit-details-marker {
+  display: none;
+}
+.voice-commands-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  width: min(340px, 85vw);
+  max-height: 360px;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--neon-cyan);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  padding: 0.5rem;
+}
+.voice-cmd-group { margin-bottom: 0.65rem; }
+.voice-cmd-cat {
+  font-family: Orbitron, sans-serif;
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  color: var(--neon-cyan);
+  margin-bottom: 0.35rem;
+  text-transform: uppercase;
+}
+.voice-cmd-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
+  padding: 0.45rem 0.5rem;
+  margin-bottom: 2px;
+  border: 1px solid transparent;
+  background: rgba(0, 240, 255, 0.03);
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+.voice-cmd-item:hover {
+  border-color: rgba(0, 240, 255, 0.35);
+  background: rgba(0, 240, 255, 0.08);
+}
+.voice-cmd-phrase {
+  font-family: Orbitron, sans-serif;
+  font-size: 0.65rem;
+  color: var(--neon-green);
+  letter-spacing: 0.06em;
+}
+.voice-cmd-desc {
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin-top: 2px;
+  line-height: 1.35;
+}
+.voice-hints-card summary::-webkit-details-marker {
+  display: none;
+}

@@ -219,14 +219,12 @@ export function SettingsPage() {
           </p>
           <button type="button" className="btn-cyber action" onClick={handleSaveOllama}>SAVE & TEST</button>
           {ollamaStatus && <p style={{ marginTop: 8, fontSize: "0.75rem", color: "var(--muted)" }}>{ollamaStatus}</p>}
-          <div className="hint-box" style={{ marginTop: "1rem" }}>
-            <p><strong>Server (.env on mato-server):</strong></p>
-            <p><code>ARGUS_OLLAMA_UPSTREAM=http://host.docker.internal:11434</code></p>
-            <p style={{ marginTop: 6 }}><strong>ARGUS Settings URL:</strong> <code>{typeof window !== "undefined" ? `${window.location.origin}/api/ollama` : "…/api/ollama"}</code> · Model: <code>qwen2.5:3b</code></p>
-            <p style={{ marginTop: 6 }}>On Ubuntu: <code>OLLAMA_HOST=0.0.0.0:11434</code> then <code>sudo systemctl restart ollama</code></p>
-            <p style={{ marginTop: 6 }}><strong>HTTP 502?</strong> On server: <code>curl http://127.0.0.1:11434/api/tags</code> — if OK, try <code>ARGUS_OLLAMA_UPSTREAM=http://172.17.0.1:11434</code> in <code>.env</code> and <code>argus-update build</code>.</p>
-            <p style={{ marginTop: 6 }}><strong>HTTP 403 on Voice chat?</strong> Redeploy ARGUS (<code>argus-update build</code>). Fallback: <code>OLLAMA_ORIGINS=https://argus.local:9443</code> in Ollama systemd env.</p>
-          </div>
+          <details className="hint-box" style={{ marginTop: "1rem", fontSize: "0.72rem" }}>
+            <summary style={{ cursor: "pointer", fontWeight: 600 }}>Server troubleshooting (advanced)</summary>
+            <p style={{ marginTop: 8 }}><code>ARGUS_OLLAMA_UPSTREAM=http://host.docker.internal:11434</code> in <code>.env</code></p>
+            <p style={{ marginTop: 6 }}>HTTP 502? <code>curl http://127.0.0.1:11434/api/tags</code> on mato-server.</p>
+            <p style={{ marginTop: 6 }}>HTTP 403? Redeploy with <code>argus-update build</code>.</p>
+          </details>
         </div>
       </div>
     </>

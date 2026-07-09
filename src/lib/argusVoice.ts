@@ -1,4 +1,5 @@
 import { getCameraDisplayLabel, extractCameraIp } from "./cameras";
+import { pickWeatherSnapshot } from "./homeSensors";
 import type { EntityLocationMaps, HAEntity, SecuritySummary } from "../types";
 import { getDomain, getFriendlyName, isOnState } from "../types";
 
@@ -33,10 +34,31 @@ function alarmPhrase(state: string): string {
   }
 }
 
+function isMotionEntity(entity: HAEntity): boolean {
+  const dc = (entity.attributes.device_class as string) || "";
+  return getDomain(entity.entity_id) === "binary_sensor" && ["motion", "occupancy", "vibration"].includes(dc);
+}
+
+function isDoorEntity(entity: HAEntity): boolean {
+  const dc = (entity.attributes.device_class as string) || "";
+  return getDomain(entity.entity_id) === "binary_sensor" && ["door", "window", "garage_door", "opening"].includes(dc);
+}
+
+function findEntityByNameHint(entities: HAEntity[], hint: string, domains?: string[]): HAEntity | null {
+  const q = hint.toLowerCase().trim();
+  if (!q) return null;
+  const pool = domains ? entities.filter((e) => domains.includes(getDomain(e.entity_id))) : entities;
+  return (
+    pool.find((e) => getFriendlyName(e).toLowerCase().includes(q)) ??
+    pool.find((e) => e.entity_id.toLowerCase().includes(q.replace(/\s+/g, "_"))) ??
+    null
+  );
+}
+
 function describeCameras(ctx: VoiceCommandContext): string {
   const cams = ctx.entities.filter((e) => getDomain(e.entity_id) === "camera");
   if (!cams.length) {
-    return "I don't see any cameras in Home Assistant yet. Add your ESP32-CAM as a Generic Camera first.";
+    return "I don't see any cameras in Home Assistant yet. Add a Generic Camera or ReoLink integration first.";
   }
 
   return cams
@@ -44,12 +66,8 @@ function describeCameras(ctx: VoiceCommandContext): string {
       const label = getCameraDisplayLabel(cam, ctx.entityLocations.areas, ctx.entityLocations.registryNames);
       const area = ctx.entityLocations.areas[cam.entity_id];
       const ip = extractCameraIp(cam);
-      if (area && ip) {
-        return `The ${area} camera is at ${ip} (${label})`;
-      }
-      if (area) {
-        return `The camera in ${area} (${label})`;
-      }
+      if (area && ip) return `The ${area} camera is at ${ip} (${label})`;
+      if (area) return `The camera in ${area} (${label})`;
       return label;
     })
     .join(". ");
@@ -57,9 +75,7 @@ function describeCameras(ctx: VoiceCommandContext): string {
 
 function describeCameraLocation(ctx: VoiceCommandContext): string {
   const cams = ctx.entities.filter((e) => getDomain(e.entity_id) === "camera");
-  if (!cams.length) {
-    return "There aren't any cameras set up in Home Assistant yet.";
-  }
+  if (!cams.length) return "There aren't any cameras set up in Home Assistant yet.";
   if (cams.length === 1) {
     const cam = cams[0];
     const area = ctx.entityLocations.areas[cam.entity_id];
@@ -67,13 +83,57 @@ function describeCameraLocation(ctx: VoiceCommandContext): string {
     if (area && ip) {
       return `Your camera is in ${area}, streaming from ${ip}. Open the Home page in ARGUS to watch the live feed.`;
     }
-    if (area) {
-      return `Your camera is assigned to ${area}. You can view it on the dashboard.`;
-    }
+    if (area) return `Your camera is assigned to ${area}. You can view it on the dashboard.`;
     const label = getCameraDisplayLabel(cam, ctx.entityLocations.areas, ctx.entityLocations.registryNames);
-    return `You have one camera (${label}). I couldn't find a room assigned in Home Assistant — set its area under Settings → Devices.`;
+    return `You have one camera (${label}). Set its area in Home Assistant for a friendlier name.`;
   }
   return `${describeCameras(ctx)}. Open the Cameras page to pick a feed.`;
+}
+
+function describeMotion(ctx: VoiceCommandContext): string {
+  const active = ctx.entities.filter((e) => isMotionEntity(e) && isOnState(e.state));
+  if (!active.length) return "All clear — no motion or occupancy detected.";
+  const names = active.slice(0, 5).map((e) => getFriendlyName(e)).join(", ");
+  const extra = active.length > 5 ? ` and ${active.length - 5} more` : "";
+  return `Motion detected: ${names}${extra}.`;
+}
+
+function describeDoors(ctx: VoiceCommandContext): string {
+  const open = ctx.entities.filter((e) => isDoorEntity(e) && (isOnState(e.state) || e.state === "open"));
+  if (!open.length) return "All doors and windows look closed.";
+  const names = open.map((e) => getFriendlyName(e)).join(", ");
+  return `${open.length} opening${open.length > 1 ? "s" : ""} open: ${names}.`;
+}
+
+function describeWeather(ctx: VoiceCommandContext): string {
+  const snap = pickWeatherSnapshot(ctx.entities);
+  if (!snap) return "No weather or temperature sensor found in Home Assistant.";
+  const parts = [`${snap.location}: ${snap.label}`];
+  if (snap.temp) parts.push(snap.temp);
+  if (snap.humidity) parts.push(`humidity ${snap.humidity}`);
+  return parts.join(", ") + ".";
+}
+
+function describeCo2(ctx: VoiceCommandContext): string {
+  const sensors = ctx.entities.filter(
+    (e) => getDomain(e.entity_id) === "sensor" && (e.attributes.device_class as string) === "carbon_dioxide",
+  );
+  if (!sensors.length) return "No CO₂ sensors configured. Add an air quality monitor in Home Assistant.";
+  return sensors
+    .map((e) => `${getFriendlyName(e)}: ${e.state}${(e.attributes.unit_of_measurement as string) || " ppm"}`)
+    .join(". ");
+}
+
+function describeBleTags(ctx: VoiceCommandContext): string {
+  const tags = ctx.entities.filter((e) => {
+    const id = e.entity_id.toLowerCase();
+    return id.includes("ble") || id.includes("tag") || getDomain(e.entity_id) === "device_tracker";
+  });
+  if (!tags.length) return "No BLE tags or trackers found.";
+  const moving = tags.filter((e) => e.state === "moving" || e.state === "home" || isOnState(e.state));
+  if (!moving.length) return `You have ${tags.length} BLE tag${tags.length > 1 ? "s" : ""}. All appear stationary.`;
+  const names = moving.slice(0, 4).map((e) => `${getFriendlyName(e)} (${e.state})`).join(", ");
+  return `BLE tags: ${names}.`;
 }
 
 function describeStatus(ctx: VoiceCommandContext): string {
@@ -81,29 +141,13 @@ function describeStatus(ctx: VoiceCommandContext): string {
   const parts: string[] = [];
 
   parts.push(`Alarm is ${alarmPhrase(summary.alarmState)}.`);
-
-  if (summary.motionActive > 0) {
-    parts.push(`${summary.motionActive} motion sensor${summary.motionActive > 1 ? "s" : ""} active right now.`);
-  } else {
-    parts.push("No motion detected.");
-  }
-
-  if (summary.doorOpen > 0) {
-    parts.push(`${summary.doorOpen} door or window open.`);
-  } else {
-    parts.push("All doors and windows look closed.");
-  }
-
+  parts.push(describeMotion(ctx).replace(/\.$/, ""));
+  parts.push(describeDoors(ctx).replace(/\.$/, ""));
   if (summary.cameraCount > 0) {
-    const cam = ctx.entities.find((e) => getDomain(e.entity_id) === "camera");
-    const area = cam ? ctx.entityLocations.areas[cam.entity_id] : null;
-    parts.push(
-      area
-        ? `${summary.cameraCount} camera online — ${area} feed is live.`
-        : `${summary.cameraCount} camera${summary.cameraCount > 1 ? "s" : ""} online.`,
-    );
+    parts.push(`${summary.cameraCount} camera${summary.cameraCount > 1 ? "s" : ""} online.`);
   }
-
+  const weather = pickWeatherSnapshot(ctx.entities);
+  if (weather?.temp) parts.push(`Temperature ${weather.temp}.`);
   parts.push(`Sensor health is ${summary.systemHealth}%.`);
   return parts.join(" ");
 }
@@ -126,19 +170,22 @@ export function buildArgusSystemPrompt(
           })
           .join("\n");
 
+  const envSensors = entities
+    .filter((e) => {
+      const dc = (e.attributes.device_class as string) || "";
+      return getDomain(e.entity_id) === "sensor" && ["temperature", "humidity", "carbon_dioxide", "pressure"].includes(dc);
+    })
+    .slice(0, 12)
+    .map((e) => `  - ${getFriendlyName(e)}: ${e.state}${(e.attributes.unit_of_measurement as string) || ""}`)
+    .join("\n");
+
   const triggered = entities
     .filter((e) => getDomain(e.entity_id) === "binary_sensor" && isOnState(e.state))
     .slice(0, 10)
     .map((e) => `  - ${getFriendlyName(e)}: ${e.state}`)
     .join("\n");
 
-  const openDoors = entities
-    .filter((e) => {
-      const dc = (e.attributes.device_class as string) || "";
-      return getDomain(e.entity_id) === "binary_sensor" && ["door", "window", "garage_door"].includes(dc) && isOnState(e.state);
-    })
-    .map((e) => getFriendlyName(e))
-    .join(", ");
+  const weather = pickWeatherSnapshot(entities);
 
   return `You are ARGUS, a friendly and concise home security assistant. You run locally as Ollama model "${modelName}".
 
@@ -152,10 +199,12 @@ STYLE:
 LIVE HOME STATE:
 - Alarm: ${summary.alarmState}
 - Motion sensors active: ${summary.motionActive} of ${summary.motionCount}
-- Doors/windows open: ${summary.doorOpen}${openDoors ? ` (${openDoors})` : ""}
+- Doors/windows open: ${summary.doorOpen}
 - Sensor health: ${summary.systemHealth}%
+- Weather: ${weather ? `${weather.location} ${weather.temp ?? ""} ${weather.humidity ?? ""}` : "n/a"}
 - Cameras (${summary.cameraCount}):
 ${cameraBlock}
+${envSensors ? `- Environment:\n${envSensors}` : ""}
 ${triggered ? `- Triggered sensors:\n${triggered}` : "- No sensors currently triggered."}
 
 Answer using the facts above. For camera location questions, use the HA area and IP from the camera list.`;
@@ -168,9 +217,9 @@ export async function runArgusLocalCommand(
   text: string,
   ctx: VoiceCommandContext,
 ): Promise<string | null> {
-  const lower = text.toLowerCase().replace(/^(hey\s+)?(argus|argo)\s*,?\s*/i, "").trim();
+  const lower = text.toLowerCase().replace(/^(hey\s+)?(argus|argo|arkus)\s*,?\s*/i, "").trim();
 
-  if (/\b(status|how'?s the perimeter|system status|what'?s happening)\b/.test(lower)) {
+  if (/\b(status|how'?s the perimeter|system status|what'?s happening|report)\b/.test(lower)) {
     return describeStatus(ctx);
   }
 
@@ -211,16 +260,64 @@ export async function runArgusLocalCommand(
     return `You have ${cams.length} camera${cams.length > 1 ? "s" : ""}. ${describeCameras(ctx)}.`;
   }
 
-  if (/\b(motion|movement|anyone there|someone there)\b/.test(lower) && !lower.includes("model")) {
-    const active = ctx.entities.filter(
-      (e) => getDomain(e.entity_id) === "binary_sensor" && isOnState(e.state),
-    );
-    if (!active.length) {
-      return "All clear — no motion or door sensors are triggered right now.";
+  if (/\b(motion|movement|anyone there|someone there|occupancy)\b/.test(lower) && !lower.includes("model")) {
+    return describeMotion(ctx);
+  }
+
+  if (/\b(door|window|opening|openings?)\b/.test(lower) && /\b(open|closed|status)\b/.test(lower)) {
+    return describeDoors(ctx);
+  }
+
+  if (/\b(weather|temperature|temp|humidity|forecast)\b/.test(lower)) {
+    return describeWeather(ctx);
+  }
+
+  if (/\b(co2|co₂|carbon|air quality)\b/.test(lower)) {
+    return describeCo2(ctx);
+  }
+
+  if (/\b(ble|tag|tracker|keys|wallet)\b/.test(lower)) {
+    return describeBleTags(ctx);
+  }
+
+  const turnOn = lower.match(/\bturn on\s+(.+)/);
+  if (turnOn) {
+    const target = findEntityByNameHint(ctx.entities, turnOn[1], ["light", "switch", "siren"]);
+    if (target) {
+      const domain = getDomain(target.entity_id);
+      await ctx.callService(domain, "turn_on", {}, { entity_id: target.entity_id });
+      return `Turning on ${getFriendlyName(target)}.`;
     }
-    const names = active.slice(0, 5).map((e) => getFriendlyName(e)).join(", ");
-    const extra = active.length > 5 ? ` and ${active.length - 5} more` : "";
-    return `Something's active: ${names}${extra}. Check the dashboard for details.`;
+    return `I couldn't find a light or switch matching "${turnOn[1]}".`;
+  }
+
+  const turnOff = lower.match(/\bturn off\s+(.+)/);
+  if (turnOff) {
+    const target = findEntityByNameHint(ctx.entities, turnOff[1], ["light", "switch", "siren"]);
+    if (target) {
+      const domain = getDomain(target.entity_id);
+      await ctx.callService(domain, "turn_off", {}, { entity_id: target.entity_id });
+      return `Turning off ${getFriendlyName(target)}.`;
+    }
+    return `I couldn't find a light or switch matching "${turnOff[1]}".`;
+  }
+
+  if (/\block\b/.test(lower) && !/\bunlock\b/.test(lower)) {
+    const hint = lower.replace(/.*\block\b\s*/, "").trim() || lower;
+    const target = findEntityByNameHint(ctx.entities, hint, ["lock"]);
+    if (target) {
+      await ctx.callService("lock", "lock", {}, { entity_id: target.entity_id });
+      return `Locking ${getFriendlyName(target)}.`;
+    }
+  }
+
+  if (/\bunlock\b/.test(lower)) {
+    const hint = lower.replace(/.*\bunlock\b\s*/, "").trim() || lower;
+    const target = findEntityByNameHint(ctx.entities, hint, ["lock"]);
+    if (target) {
+      await ctx.callService("lock", "unlock", {}, { entity_id: target.entity_id });
+      return `Unlocking ${getFriendlyName(target)}.`;
+    }
   }
 
   return null;

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useHA } from "../context/HAContext";
 import { useArgusMic } from "../hooks/useArgusMic";
 import { buildArgusSystemPrompt, runArgusLocalCommand } from "../lib/argusVoice";
+import { ARGUS_VOICE_COMMANDS, VOICE_COMMAND_CATEGORIES } from "../lib/voiceCommands";
 import { askOllama, loadOllamaConfig, type OllamaConfig } from "../lib/ollama";
 
 const VOICE_MUTE_KEY = "argus_voice_muted";
@@ -83,11 +84,17 @@ export function VoicePage() {
       if (muted || !("speechSynthesis" in window)) return;
       speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(text);
-      utter.rate = 0.95;
-      utter.pitch = 0.9;
+      utter.rate = 0.92;
+      utter.pitch = 0.95;
+      const voices = speechSynthesis.getVoices();
+      const preferred =
+        voices.find((v) => /samantha|zira|google.*english|english.*premium/i.test(v.name)) ??
+        voices.find((v) => v.lang.startsWith("en")) ??
+        voices[0];
+      if (preferred) utter.voice = preferred;
       speechSynthesis.speak(utter);
     },
-    [muted]
+    [muted],
   );
 
   const runLocalCommand = useCallback(
@@ -274,6 +281,38 @@ export function VoicePage() {
           <div className="card-header card-header-row">
             <span><i className="bi bi-chat-dots" /> Conversation</span>
             <div className="voice-chat-actions">
+              <details className="voice-commands-dropdown">
+                <summary className="btn-cyber-mini" title="Available voice commands">
+                  <i className="bi bi-list-ul" /> COMMANDS
+                </summary>
+                <div className="voice-commands-panel">
+                  {Object.entries(
+                    ARGUS_VOICE_COMMANDS.reduce<Record<string, typeof ARGUS_VOICE_COMMANDS>>((acc, cmd) => {
+                      (acc[cmd.category] ??= []).push(cmd);
+                      return acc;
+                    }, {}),
+                  ).map(([cat, cmds]) => (
+                    <div key={cat} className="voice-cmd-group">
+                      <div className="voice-cmd-cat">{VOICE_COMMAND_CATEGORIES[cat as keyof typeof VOICE_COMMAND_CATEGORIES]}</div>
+                      {cmds.map((cmd) => (
+                        <button
+                          key={cmd.phrase}
+                          type="button"
+                          className="voice-cmd-item"
+                          onClick={() => {
+                            const text = cmd.example ?? `ARGUS, ${cmd.phrase}`;
+                            setInput(text.replace(/^ARGUS,\s*/i, ""));
+                            inputRef.current?.focus();
+                          }}
+                        >
+                          <span className="voice-cmd-phrase">{cmd.phrase}</span>
+                          <span className="voice-cmd-desc">{cmd.description}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </details>
               <button
                 type="button"
                 className="btn-cyber-mini"
@@ -313,19 +352,16 @@ export function VoicePage() {
         </div>
       </div>
 
-      <div className="card" style={{ marginTop: "1rem" }}>
-        <div className="card-header"><i className="bi bi-info-circle" /> Web mic &amp; HTTPS</div>
-        <div className="card-body hint-box" style={{ lineHeight: 1.7 }}>
-          <p>
-            Browsers only allow the microphone on <strong>HTTPS</strong>. Use <code>https://argus.local:9443</code>.
-          </p>
-          <p style={{ marginTop: 6 }}>
-            <strong>Speech not typing in Brave?</strong> Enable server Whisper once:{" "}
-            <code>docker compose --profile stt up -d</code> on mato-server, then mic uses local STT automatically.
-          </p>
-          <p style={{ marginTop: 6 }}>Use the <strong>speaker button</strong> next to the mic to mute/unmute spoken replies.</p>
+      <details className="card voice-hints-card" style={{ marginTop: "1rem" }}>
+        <summary className="card-header" style={{ cursor: "pointer", listStyle: "none" }}>
+          <i className="bi bi-info-circle" /> Mic &amp; HTTPS tips
+        </summary>
+        <div className="card-body hint-box" style={{ lineHeight: 1.7, fontSize: "0.75rem" }}>
+          <p>Microphone needs <strong>HTTPS</strong> — use your ARGUS URL (e.g. <code>https://10.8.0.1:9443</code>).</p>
+          <p style={{ marginTop: 6 }}>Brave not typing speech? Run <code>docker compose --profile stt up -d</code> on the server for Whisper fallback.</p>
+          <p style={{ marginTop: 6 }}>Use the <strong>speaker button</strong> to mute spoken replies. Say <strong>“ARGUS, …”</strong> or type commands from the <strong>COMMANDS</strong> menu.</p>
         </div>
-      </div>
+      </details>
     </>
   );
 }

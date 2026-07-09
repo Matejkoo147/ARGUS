@@ -25,7 +25,14 @@ const GROUP_ORDER: HomeSensorGroup[] = ["perimeter", "motion", "ble", "environme
 function isBleEntity(entity: HAEntity): boolean {
   const id = entity.entity_id.toLowerCase();
   const dc = (entity.attributes.device_class as string) || "";
-  return id.includes("ble") || id.includes("tag") || id.includes("tracker") || dc === "accelerometer";
+  const domain = getDomain(entity.entity_id);
+  return (
+    id.includes("ble") ||
+    id.includes("tag") ||
+    id.includes("tracker") ||
+    dc === "accelerometer" ||
+    domain === "device_tracker"
+  );
 }
 
 function classifyHomeSensor(entity: HAEntity): HomeSensorGroup | null {

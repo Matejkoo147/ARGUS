@@ -206,6 +206,10 @@ export class HomeAssistantClient {
       const svc = entity.state === "on" ? "turn_off" : "turn_on";
       return this.callService(domain, svc, {}, { entity_id: entity.entity_id });
     }
+    if (domain === "siren") {
+      const svc = entity.state === "on" ? "turn_off" : "turn_on";
+      return this.callService(domain, svc, {}, { entity_id: entity.entity_id });
+    }
     if (domain === "lock") {
       const svc = entity.state === "locked" ? "unlock" : "lock";
       return this.callService(domain, svc, {}, { entity_id: entity.entity_id });

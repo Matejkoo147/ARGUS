@@ -166,7 +166,7 @@ export function AlertsBell() {
             <button type="button" className="alerts-foot-link" onClick={() => { setOpen(false); navigate("/history"); }}>
               Full history
             </button>
-            <span className="alerts-foot-hint">AI hourly analysis — planned</span>
+            <span className="alerts-foot-hint">Live + last 2h logbook</span>
           </div>
         </div>
       )}
