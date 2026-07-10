@@ -131,130 +131,134 @@ export function AppShell() {
         </div>
 
         <div className="nav-hud">
-          <span className="nav-metric nav-metric--clock" title="Local time">
-            <i className="bi bi-clock" />
-            <strong>{clock}</strong>
-          </span>
-
-          <span className="nav-hud-sep" aria-hidden />
-
-          <div className="nav-hud-status">
-            <span className={`status-dot ${dotClass}`} />
-            <span className={breach ? "glow-red" : armed ? "glow-red" : status === "connected" ? "glow-green" : ""}>
-              {statusLabel}
+          <div className="nav-hud-edge nav-hud-edge--left">
+            <span className="nav-metric nav-metric--clock" title="Local time">
+              <i className="bi bi-clock" />
+              <strong>{clock}</strong>
             </span>
           </div>
 
-          <span className="nav-hud-sep" aria-hidden />
+          <div className="nav-hud-center">
+            <div className="nav-hud-status">
+              <span className={`status-dot ${dotClass}`} />
+              <span className={breach ? "glow-red" : armed ? "glow-red" : status === "connected" ? "glow-green" : ""}>
+                {statusLabel}
+              </span>
+            </div>
 
-          {breach ? (
-            <span className="badge-mode badge-breach">BREACH</span>
-          ) : armed ? (
-            <span className="badge-mode badge-armed">SECURE</span>
-          ) : status === "connected" ? (
-            <span className="badge-mode badge-safe">DISARMED</span>
-          ) : null}
+            <span className="nav-hud-sep" aria-hidden />
 
-          {perimeterBrief && (
-            <>
-              <span className="nav-hud-sep nav-hud-sep--brief" aria-hidden />
+            {breach ? (
+              <span className="badge-mode badge-breach">BREACH</span>
+            ) : armed ? (
+              <span className="badge-mode badge-armed">SECURE</span>
+            ) : status === "connected" ? (
+              <span className="badge-mode badge-safe">DISARMED</span>
+            ) : null}
+
+            {perimeterBrief && (
+              <>
+                <span className="nav-hud-sep nav-hud-sep--brief" aria-hidden />
+                <button
+                  type="button"
+                  className={`nav-hud-brief${perimeterBrief.cls ? ` ${perimeterBrief.cls}` : ""}`}
+                  title="Perimeter status — tap to open"
+                  onClick={() => navigate(perimeterBrief.route)}
+                >
+                  {perimeterBrief.text}
+                </button>
+              </>
+            )}
+
+            <span className="nav-hud-sep nav-hud-sep--metrics" aria-hidden />
+
+            <div className="nav-metrics nav-metrics--desktop">
+              <NavMetricBtn
+                title="Cameras — open feeds"
+                icon="bi-camera-video"
+                value={summary.cameraCount}
+                onClick={() => navigate("/cameras")}
+              />
+              <NavMetricBtn
+                title={`Motion — ${summary.motionActive} active of ${summary.motionCount}`}
+                icon="bi-person-walking"
+                value={`${summary.motionActive}/${summary.motionCount}`}
+                alert={summary.motionActive > 0}
+                onClick={() => navigate("/sensors")}
+              />
+              <NavMetricBtn
+                title="Open doors and windows"
+                icon="bi-door-open"
+                value={summary.doorOpen}
+                alert={summary.doorOpen > 0}
+                onClick={() => navigate("/")}
+              />
+              {summary.bleTagCount > 0 && (
+                <NavMetricBtn
+                  title="BLE tags and trackers"
+                  icon="bi-bluetooth"
+                  value={summary.bleTagCount}
+                  onClick={() => navigate("/sensors")}
+                />
+              )}
+              <NavMetricBtn
+                title="Sensor health — online vs unavailable"
+                icon="bi-heart-pulse"
+                value={`${summary.systemHealth}%`}
+                alert={summary.systemHealth < 90}
+                onClick={() => navigate("/sensors")}
+              />
+            </div>
+
+            <div className="nav-metrics nav-metrics--mobile">
+              <NavMetricBtn
+                title="Motion sensors"
+                icon="bi-person-walking"
+                value={summary.motionActive}
+                alert={summary.motionActive > 0}
+                onClick={() => navigate("/sensors")}
+              />
+              <NavMetricBtn
+                title="Openings"
+                icon="bi-door-open"
+                value={summary.doorOpen}
+                alert={summary.doorOpen > 0}
+                onClick={() => navigate("/")}
+              />
+              <NavMetricBtn
+                title="Cameras"
+                icon="bi-camera-video"
+                value={summary.cameraCount}
+                onClick={() => navigate("/cameras")}
+              />
+              {summary.bleTagCount > 0 && (
+                <NavMetricBtn
+                  title="BLE tags"
+                  icon="bi-bluetooth"
+                  value={summary.bleTagCount}
+                  onClick={() => navigate("/sensors")}
+                />
+              )}
+            </div>
+          </div>
+
+          <div className="nav-hud-edge nav-hud-edge--right">
+            {weather ? (
               <button
                 type="button"
-                className={`nav-hud-brief${perimeterBrief.cls ? ` ${perimeterBrief.cls}` : ""}`}
-                title="Perimeter status — tap to open"
-                onClick={() => navigate(perimeterBrief.route)}
+                className="nav-metric nav-metric-btn nav-metric--weather nav-hud-weather"
+                title={`${weather.label} — ${weather.temp ?? ""} ${weather.humidity ?? ""}`.trim()}
+                onClick={() => navigate("/sensors")}
               >
-                {perimeterBrief.text}
+                <i className={`bi ${weather.icon}`} />
+                <span className="weather-loc">{weather.location}</span>
+                {weather.temp && <strong>{weather.temp}</strong>}
+                {weather.humidity && <span className="weather-humidity">{weather.humidity}</span>}
               </button>
-            </>
-          )}
-
-          <span className="nav-hud-sep nav-hud-sep--metrics" aria-hidden />
-
-          <div className="nav-metrics nav-metrics--desktop">
-            <NavMetricBtn
-              title="Cameras — open feeds"
-              icon="bi-camera-video"
-              value={summary.cameraCount}
-              onClick={() => navigate("/cameras")}
-            />
-            <NavMetricBtn
-              title={`Motion — ${summary.motionActive} active of ${summary.motionCount}`}
-              icon="bi-person-walking"
-              value={`${summary.motionActive}/${summary.motionCount}`}
-              alert={summary.motionActive > 0}
-              onClick={() => navigate("/sensors")}
-            />
-            <NavMetricBtn
-              title="Open doors and windows"
-              icon="bi-door-open"
-              value={summary.doorOpen}
-              alert={summary.doorOpen > 0}
-              onClick={() => navigate("/")}
-            />
-            {summary.bleTagCount > 0 && (
-              <NavMetricBtn
-                title="BLE tags and trackers"
-                icon="bi-bluetooth"
-                value={summary.bleTagCount}
-                onClick={() => navigate("/sensors")}
-              />
-            )}
-            <NavMetricBtn
-              title="Sensor health — online vs unavailable"
-              icon="bi-heart-pulse"
-              value={`${summary.systemHealth}%`}
-              alert={summary.systemHealth < 90}
-              onClick={() => navigate("/sensors")}
-            />
-          </div>
-
-          <div className="nav-metrics nav-metrics--mobile">
-            <NavMetricBtn
-              title="Motion sensors"
-              icon="bi-person-walking"
-              value={summary.motionActive}
-              alert={summary.motionActive > 0}
-              onClick={() => navigate("/sensors")}
-            />
-            <NavMetricBtn
-              title="Openings"
-              icon="bi-door-open"
-              value={summary.doorOpen}
-              alert={summary.doorOpen > 0}
-              onClick={() => navigate("/")}
-            />
-            <NavMetricBtn
-              title="Cameras"
-              icon="bi-camera-video"
-              value={summary.cameraCount}
-              onClick={() => navigate("/cameras")}
-            />
-            {summary.bleTagCount > 0 && (
-              <NavMetricBtn
-                title="BLE tags"
-                icon="bi-bluetooth"
-                value={summary.bleTagCount}
-                onClick={() => navigate("/sensors")}
-              />
+            ) : (
+              <span className="nav-hud-edge-placeholder" aria-hidden />
             )}
           </div>
-
-          <span className="nav-hud-spacer" aria-hidden />
-
-          {weather && (
-            <button
-              type="button"
-              className="nav-metric nav-metric-btn nav-metric--weather nav-hud-weather"
-              title={`${weather.label} — ${weather.temp ?? ""} ${weather.humidity ?? ""}`.trim()}
-              onClick={() => navigate("/sensors")}
-            >
-              <i className={`bi ${weather.icon}`} />
-              <span className="weather-loc">{weather.location}</span>
-              {weather.temp && <strong>{weather.temp}</strong>}
-              {weather.humidity && <span className="weather-humidity">{weather.humidity}</span>}
-            </button>
-          )}
         </div>
 
         <div className="nav-actions">
