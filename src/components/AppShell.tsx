@@ -72,7 +72,7 @@ export function AppShell() {
       const health = summary.systemHealth < 100 ? ` · ${summary.systemHealth}%` : "";
       return { text: `CLEAR · ${sensorTotal} sensors${health}`, cls: "glow-green", route: "/" as const };
     }
-    return { text: "LINK SENSORS", cls: "", route: "/settings" as const };
+    return null;
   }, [breach, summary, sensorTotal]);
 
   useEffect(() => {
@@ -131,6 +131,13 @@ export function AppShell() {
         </div>
 
         <div className="nav-hud">
+          <span className="nav-metric nav-metric--clock" title="Local time">
+            <i className="bi bi-clock" />
+            <strong>{clock}</strong>
+          </span>
+
+          <span className="nav-hud-sep" aria-hidden />
+
           <div className="nav-hud-status">
             <span className={`status-dot ${dotClass}`} />
             <span className={breach ? "glow-red" : armed ? "glow-red" : status === "connected" ? "glow-green" : ""}>
@@ -148,16 +155,19 @@ export function AppShell() {
             <span className="badge-mode badge-safe">DISARMED</span>
           ) : null}
 
-          <span className="nav-hud-sep nav-hud-sep--brief" aria-hidden />
-
-          <button
-            type="button"
-            className={`nav-hud-brief${perimeterBrief.cls ? ` ${perimeterBrief.cls}` : ""}`}
-            title="Perimeter status — tap to open"
-            onClick={() => navigate(perimeterBrief.route)}
-          >
-            {perimeterBrief.text}
-          </button>
+          {perimeterBrief && (
+            <>
+              <span className="nav-hud-sep nav-hud-sep--brief" aria-hidden />
+              <button
+                type="button"
+                className={`nav-hud-brief${perimeterBrief.cls ? ` ${perimeterBrief.cls}` : ""}`}
+                title="Perimeter status — tap to open"
+                onClick={() => navigate(perimeterBrief.route)}
+              >
+                {perimeterBrief.text}
+              </button>
+            </>
+          )}
 
           <span className="nav-hud-sep nav-hud-sep--metrics" aria-hidden />
 
@@ -197,23 +207,6 @@ export function AppShell() {
               alert={summary.systemHealth < 90}
               onClick={() => navigate("/sensors")}
             />
-            {weather && (
-              <button
-                type="button"
-                className="nav-metric nav-metric-btn nav-metric--weather"
-                title={`${weather.label} — ${weather.temp ?? ""} ${weather.humidity ?? ""}`.trim()}
-                onClick={() => navigate("/sensors")}
-              >
-                <i className={`bi ${weather.icon}`} />
-                <span className="weather-loc">{weather.location}</span>
-                {weather.temp && <strong>{weather.temp}</strong>}
-                {weather.humidity && <span className="weather-humidity">{weather.humidity}</span>}
-              </button>
-            )}
-            <span className="nav-metric nav-metric--clock" title="Local time">
-              <i className="bi bi-clock" />
-              <strong>{clock}</strong>
-            </span>
           </div>
 
           <div className="nav-metrics nav-metrics--mobile">
@@ -246,6 +239,22 @@ export function AppShell() {
               />
             )}
           </div>
+
+          <span className="nav-hud-spacer" aria-hidden />
+
+          {weather && (
+            <button
+              type="button"
+              className="nav-metric nav-metric-btn nav-metric--weather nav-hud-weather"
+              title={`${weather.label} — ${weather.temp ?? ""} ${weather.humidity ?? ""}`.trim()}
+              onClick={() => navigate("/sensors")}
+            >
+              <i className={`bi ${weather.icon}`} />
+              <span className="weather-loc">{weather.location}</span>
+              {weather.temp && <strong>{weather.temp}</strong>}
+              {weather.humidity && <span className="weather-humidity">{weather.humidity}</span>}
+            </button>
+          )}
         </div>
 
         <div className="nav-actions">

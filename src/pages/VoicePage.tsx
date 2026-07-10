@@ -34,6 +34,7 @@ export function VoicePage() {
   const { entities, summary, callService, entityLocations, preferences } = useHA();
   const navigate = useNavigate();
   const [pendingArm, setPendingArm] = useState<ArmAction | null>(null);
+  const [commandsOpen, setCommandsOpen] = useState(false);
   const [ollama, setOllama] = useState<OllamaConfig | null>(() => loadOllamaConfig());
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -346,38 +347,15 @@ export function VoicePage() {
           <div className="card-header card-header-row">
             <span><i className="bi bi-chat-dots" /> Conversation</span>
             <div className="voice-chat-actions">
-              <details className="voice-commands-dropdown">
-                <summary className="btn-cyber-mini" title="Available voice commands">
-                  <i className="bi bi-list-ul" /> COMMANDS
-                </summary>
-                <div className="voice-commands-panel">
-                  {Object.entries(
-                    ARGUS_VOICE_COMMANDS.reduce<Record<string, typeof ARGUS_VOICE_COMMANDS>>((acc, cmd) => {
-                      (acc[cmd.category] ??= []).push(cmd);
-                      return acc;
-                    }, {}),
-                  ).map(([cat, cmds]) => (
-                    <div key={cat} className="voice-cmd-group">
-                      <div className="voice-cmd-cat">{VOICE_COMMAND_CATEGORIES[cat as keyof typeof VOICE_COMMAND_CATEGORIES]}</div>
-                      {cmds.map((cmd) => (
-                        <button
-                          key={cmd.phrase}
-                          type="button"
-                          className="voice-cmd-item"
-                          onClick={() => {
-                            const text = cmd.example ?? `ARGUS, ${cmd.phrase}`;
-                            setInput(text.replace(/^ARGUS,\s*/i, ""));
-                            inputRef.current?.focus();
-                          }}
-                        >
-                          <span className="voice-cmd-phrase">{cmd.phrase}</span>
-                          <span className="voice-cmd-desc">{cmd.description}</span>
-                        </button>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              </details>
+              <button
+                type="button"
+                className={`btn-cyber-mini${commandsOpen ? " active" : ""}`}
+                title="Available voice commands"
+                aria-expanded={commandsOpen}
+                onClick={() => setCommandsOpen((v) => !v)}
+              >
+                <i className="bi bi-list-ul" /> COMMANDS
+              </button>
               <button
                 type="button"
                 className="btn-cyber-mini"
@@ -393,6 +371,40 @@ export function VoicePage() {
               </button>
             </div>
           </div>
+
+          {commandsOpen && (
+            <div className="voice-commands-panel voice-commands-panel--inline">
+              {Object.entries(
+                ARGUS_VOICE_COMMANDS.reduce<Record<string, typeof ARGUS_VOICE_COMMANDS>>((acc, cmd) => {
+                  (acc[cmd.category] ??= []).push(cmd);
+                  return acc;
+                }, {}),
+              ).map(([cat, cmds]) => (
+                <div key={cat} className="voice-cmd-group">
+                  <div className="voice-cmd-cat">{VOICE_COMMAND_CATEGORIES[cat as keyof typeof VOICE_COMMAND_CATEGORIES]}</div>
+                  <div className="voice-cmd-grid">
+                    {cmds.map((cmd) => (
+                      <button
+                        key={cmd.phrase}
+                        type="button"
+                        className="voice-cmd-item"
+                        onClick={() => {
+                          const text = cmd.example ?? `ARGUS, ${cmd.phrase}`;
+                          setInput(text.replace(/^ARGUS,\s*/i, ""));
+                          setCommandsOpen(false);
+                          inputRef.current?.focus();
+                        }}
+                      >
+                        <span className="voice-cmd-phrase">{cmd.phrase}</span>
+                        <span className="voice-cmd-desc">{cmd.description}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="card-body log-terminal voice-chat voice-chat-log">
             {messages.map((m, i) => (
               <div key={i} className={`chat-bubble ${m.role}${m.source === "ollama" ? " ollama-reply" : ""}`}>
@@ -424,7 +436,7 @@ export function VoicePage() {
         <div className="card-body hint-box" style={{ lineHeight: 1.7, fontSize: "0.75rem" }}>
           <p>Microphone needs <strong>HTTPS</strong> — use your ARGUS URL (e.g. <code>https://10.8.0.1:9443</code>).</p>
           <p style={{ marginTop: 6 }}>Brave not typing speech? Run <code>docker compose --profile stt up -d</code> on the server for Whisper fallback.</p>
-          <p style={{ marginTop: 6 }}>Use the <strong>speaker button</strong> to mute spoken replies. Say <strong>“ARGUS, …”</strong> or type commands from the <strong>COMMANDS</strong> menu.</p>
+          <p style={{ marginTop: 6 }}>Use the <strong>speaker button</strong> to mute spoken replies. Tap <strong>COMMANDS</strong> above the chat to pick a phrase — it fills the input without covering messages.</p>
         </div>
       </details>
 
