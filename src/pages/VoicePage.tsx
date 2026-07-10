@@ -30,11 +30,45 @@ function formatMeta(source: ReplySource, model?: string, latencyMs?: number, tok
   return parts.filter(Boolean).join(" · ");
 }
 
+function groupedCommands() {
+  return Object.entries(
+    ARGUS_VOICE_COMMANDS.reduce<Record<string, typeof ARGUS_VOICE_COMMANDS>>((acc, cmd) => {
+      (acc[cmd.category] ??= []).push(cmd);
+      return acc;
+    }, {}),
+  );
+}
+
+function VoiceCommandsList({ onPick }: { onPick: (phrase: string) => void }) {
+  return (
+    <>
+      {groupedCommands().map(([cat, cmds]) => (
+        <div key={cat} className="voice-cmd-group">
+          <div className="voice-cmd-cat">{VOICE_COMMAND_CATEGORIES[cat as keyof typeof VOICE_COMMAND_CATEGORIES]}</div>
+          <div className="voice-cmd-list">
+            {cmds.map((cmd) => (
+              <button
+                key={cmd.phrase}
+                type="button"
+                className="voice-cmd-item"
+                onClick={() => onPick(cmd.example ?? `ARGUS, ${cmd.phrase}`)}
+              >
+                <span className="voice-cmd-phrase">{cmd.phrase}</span>
+                <span className="voice-cmd-desc">{cmd.description}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
 export function VoicePage() {
   const { entities, summary, callService, entityLocations, preferences } = useHA();
   const navigate = useNavigate();
   const [pendingArm, setPendingArm] = useState<ArmAction | null>(null);
-  const [commandsOpen, setCommandsOpen] = useState(false);
+  const commandsRef = useRef<HTMLDetailsElement>(null);
   const [ollama, setOllama] = useState<OllamaConfig | null>(() => loadOllamaConfig());
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -247,6 +281,12 @@ export function VoicePage() {
     });
   };
 
+  const pickCommand = (raw: string) => {
+    setInput(raw.replace(/^ARGUS,\s*/i, ""));
+    if (commandsRef.current) commandsRef.current.open = false;
+    inputRef.current?.focus();
+  };
+
   const toggleListen = () => {
     if (listening) {
       stopMic();
@@ -266,7 +306,7 @@ export function VoicePage() {
       </div>
 
       <div className="grid-2 voice-grid">
-        <div className="card voice-card">
+        <div className="card voice-card voice-card--controls">
           <div className="card-header card-header-row">
             <span><i className="bi bi-mic-fill" /> ARGUS Voice</span>
             <span className={`voice-badge${muted ? " muted" : ""}`}>
@@ -275,87 +315,89 @@ export function VoicePage() {
             </span>
           </div>
           <div className="card-body voice-panel">
-            <div className="voice-toolbar">
-              <button
-                type="button"
-                className={`voice-mic${listening ? " listening" : ""}${listenPhase === "capture" ? " capturing" : ""}`}
-                onClick={toggleListen}
-                disabled={busy}
-                title="Tap to listen for “ARGUS, …” — tap again to stop early"
-                aria-label="Microphone — wake word ARGUS"
-              >
-                <i className={`bi ${listening ? "bi-mic-fill" : "bi-mic"}`} />
-              </button>
-              <button
-                type="button"
-                className={`voice-aux-btn${muted ? " active" : ""}`}
-                onClick={toggleMute}
-                title={muted ? "Unmute spoken replies" : "Mute spoken replies"}
-                aria-label={muted ? "Unmute voice reply" : "Mute voice reply"}
-              >
-                <i className={`bi ${muted ? "bi-volume-mute-fill" : "bi-volume-up-fill"}`} />
-              </button>
-            </div>
-
-            <p className={`voice-hint${listening ? " active" : ""}${listenPhase === "capture" ? " capture" : ""}${micError ? " error" : ""}`}>
-              {busy ? busyLabel || "Processing…" : hint}
-            </p>
-
-            {listening && (
-              <div className="voice-level" aria-hidden>
-                <div
-                  className={`voice-level-bar${heardMic ? " hot" : ""}`}
-                  style={{ width: `${Math.min(100, (audioLevel / 50) * 100)}%` }}
-                />
+            <div className="voice-controls">
+              <div className="voice-toolbar">
+                <button
+                  type="button"
+                  className={`voice-mic${listening ? " listening" : ""}${listenPhase === "capture" ? " capturing" : ""}`}
+                  onClick={toggleListen}
+                  disabled={busy}
+                  title="Tap to listen for “ARGUS, …” — tap again to stop early"
+                  aria-label="Microphone — wake word ARGUS"
+                >
+                  <i className={`bi ${listening ? "bi-mic-fill" : "bi-mic"}`} />
+                </button>
+                <button
+                  type="button"
+                  className={`voice-aux-btn${muted ? " active" : ""}`}
+                  onClick={toggleMute}
+                  title={muted ? "Unmute spoken replies" : "Mute spoken replies"}
+                  aria-label={muted ? "Unmute voice reply" : "Mute voice reply"}
+                >
+                  <i className={`bi ${muted ? "bi-volume-mute-fill" : "bi-volume-up-fill"}`} />
+                </button>
               </div>
-            )}
 
-            <div className="voice-input-wrap">
-              <input
-                ref={inputRef}
-                className="cyber-input voice-input"
-                value={listening ? micInputValue : input}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (listening) setDraft(v);
-                  else setInput(v);
-                }}
-                onKeyDown={(e) => e.key === "Enter" && sendMessage(listening ? (draft || micInputValue) : input)}
-                placeholder="Ask ARGUS… or say “ARGUS, status”"
-                disabled={busy}
-              />
-              <button
-                type="button"
-                className="btn-cyber action voice-send"
-                onClick={() => sendMessage(listening ? (draft || micInputValue) : input)}
-                disabled={busy || !(listening ? (draft || micInputValue) : input).trim()}
-              >
-                {busy ? (
-                  <>
-                    <span className="argus-spinner argus-spinner--btn" aria-hidden />
-                    WAIT
-                  </>
-                ) : (
-                  "SEND"
-                )}
-              </button>
+              <p className={`voice-hint${listening ? " active" : ""}${listenPhase === "capture" ? " capture" : ""}${micError ? " error" : ""}`}>
+                {busy ? busyLabel || "Processing…" : hint}
+              </p>
+
+              {listening && (
+                <div className="voice-level" aria-hidden>
+                  <div
+                    className={`voice-level-bar${heardMic ? " hot" : ""}`}
+                    style={{ width: `${Math.min(100, (audioLevel / 50) * 100)}%` }}
+                  />
+                </div>
+              )}
+
+              <div className="voice-input-wrap">
+                <input
+                  ref={inputRef}
+                  className="cyber-input voice-input"
+                  value={listening ? micInputValue : input}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (listening) setDraft(v);
+                    else setInput(v);
+                  }}
+                  onKeyDown={(e) => e.key === "Enter" && sendMessage(listening ? (draft || micInputValue) : input)}
+                  placeholder="Ask ARGUS… or say “ARGUS, status”"
+                  disabled={busy}
+                />
+                <button
+                  type="button"
+                  className="btn-cyber action voice-send"
+                  onClick={() => sendMessage(listening ? (draft || micInputValue) : input)}
+                  disabled={busy || !(listening ? (draft || micInputValue) : input).trim()}
+                >
+                  {busy ? (
+                    <>
+                      <span className="argus-spinner argus-spinner--btn" aria-hidden />
+                      WAIT
+                    </>
+                  ) : (
+                    "SEND"
+                  )}
+                </button>
+              </div>
             </div>
+
+            <details ref={commandsRef} className="voice-commands-drawer">
+              <summary className="voice-commands-summary">
+                <i className="bi bi-list-ul" /> Command phrases
+              </summary>
+              <div className="voice-commands-panel voice-commands-panel--sidebar">
+                <VoiceCommandsList onPick={pickCommand} />
+              </div>
+            </details>
           </div>
         </div>
 
-        <div className="card voice-card">
+        <div className="card voice-card voice-card--chat">
           <div className="card-header card-header-row">
             <span><i className="bi bi-chat-dots" /> Conversation</span>
             <div className="voice-chat-actions">
-              <button
-                type="button"
-                className={`btn-cyber-mini${commandsOpen ? " active" : ""}`}
-                title="Available voice commands"
-                aria-expanded={commandsOpen}
-                onClick={() => setCommandsOpen((v) => !v)}
-              >
-                <i className="bi bi-list-ul" /> COMMANDS
-              </button>
               <button
                 type="button"
                 className="btn-cyber-mini"
@@ -371,39 +413,6 @@ export function VoicePage() {
               </button>
             </div>
           </div>
-
-          {commandsOpen && (
-            <div className="voice-commands-panel voice-commands-panel--inline">
-              {Object.entries(
-                ARGUS_VOICE_COMMANDS.reduce<Record<string, typeof ARGUS_VOICE_COMMANDS>>((acc, cmd) => {
-                  (acc[cmd.category] ??= []).push(cmd);
-                  return acc;
-                }, {}),
-              ).map(([cat, cmds]) => (
-                <div key={cat} className="voice-cmd-group">
-                  <div className="voice-cmd-cat">{VOICE_COMMAND_CATEGORIES[cat as keyof typeof VOICE_COMMAND_CATEGORIES]}</div>
-                  <div className="voice-cmd-grid">
-                    {cmds.map((cmd) => (
-                      <button
-                        key={cmd.phrase}
-                        type="button"
-                        className="voice-cmd-item"
-                        onClick={() => {
-                          const text = cmd.example ?? `ARGUS, ${cmd.phrase}`;
-                          setInput(text.replace(/^ARGUS,\s*/i, ""));
-                          setCommandsOpen(false);
-                          inputRef.current?.focus();
-                        }}
-                      >
-                        <span className="voice-cmd-phrase">{cmd.phrase}</span>
-                        <span className="voice-cmd-desc">{cmd.description}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
 
           <div className="card-body log-terminal voice-chat voice-chat-log">
             {messages.map((m, i) => (
@@ -436,7 +445,7 @@ export function VoicePage() {
         <div className="card-body hint-box" style={{ lineHeight: 1.7, fontSize: "0.75rem" }}>
           <p>Microphone needs <strong>HTTPS</strong> — use your ARGUS URL (e.g. <code>https://10.8.0.1:9443</code>).</p>
           <p style={{ marginTop: 6 }}>Brave not typing speech? Run <code>docker compose --profile stt up -d</code> on the server for Whisper fallback.</p>
-          <p style={{ marginTop: 6 }}>Use the <strong>speaker button</strong> to mute spoken replies. Tap <strong>COMMANDS</strong> above the chat to pick a phrase — it fills the input without covering messages.</p>
+          <p style={{ marginTop: 6 }}>Use the <strong>speaker button</strong> to mute spoken replies. Open <strong>Command phrases</strong> under the mic panel to fill the input — the chat stays full height.</p>
         </div>
       </details>
 
