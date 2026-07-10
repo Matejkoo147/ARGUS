@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useHA } from "../context/HAContext";
 import { CAMERA_SLOT_NONE, getCameraDisplayLabel } from "../lib/cameras";
 import { maskToken } from "../lib/auth";
@@ -8,6 +9,7 @@ import { defaultHaProxyUrl } from "../lib/settingsMigrate";
 import { getDomain, getFriendlyName } from "../types";
 
 export function SettingsPage() {
+  const navigate = useNavigate();
   const { config, connect, disconnect, status, refreshStates, entities, preferences, setDashboardCameras, updatePreferences, entityLocations } = useHA();
   const [url, setUrl] = useState(config?.url ?? defaultHaProxyUrl());
   const [token, setToken] = useState(config?.token ?? "");
@@ -305,6 +307,26 @@ export function SettingsPage() {
             <p style={{ marginTop: 6 }}>HTTP 502? <code>curl http://127.0.0.1:11434/api/tags</code> on mato-server.</p>
             <p style={{ marginTop: 6 }}>HTTP 403? Redeploy with <code>argus-update build</code>.</p>
           </details>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: "1rem" }}>
+        <div className="card-header"><i className="bi bi-box-arrow-left" /> Session</div>
+        <div className="card-body">
+          <p style={{ fontSize: "0.75rem", color: "var(--muted)", margin: "0 0 1rem" }}>
+            Sign out clears your Home Assistant token from this device. On phones, use this instead of the bottom bar.
+          </p>
+          <button
+            type="button"
+            className="btn-cyber stop"
+            onClick={() => {
+              disconnect();
+              navigate("/");
+              window.location.reload();
+            }}
+          >
+            SIGN OUT
+          </button>
         </div>
       </div>
     </>

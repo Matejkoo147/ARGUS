@@ -270,7 +270,7 @@ export function VoicePage() {
     }
     const n = Math.floor(Math.random() * 10000);
     sendMessage(
-      `Reply with exactly: MODEL_CHECK — state your model name and the number ${n}.`,
+      `State which AI model you are using and say the number ${n}. Reply in one short sentence with your exact model name and the number ${n}.`,
     );
   };
 
