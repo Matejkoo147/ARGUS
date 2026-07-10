@@ -1,5 +1,5 @@
 import { getCameraDisplayLabel, extractCameraIp } from "./cameras";
-import { pickWeatherSnapshot } from "./homeSensors";
+import { isBleTagEntity, isMotionEntity, isPerimeterEntity, pickWeatherSnapshot, type ArmAction } from "./homeSensors";
 import type { EntityLocationMaps, HAEntity, SecuritySummary } from "../types";
 import { getDomain, getFriendlyName, isOnState } from "../types";
 
@@ -7,6 +7,7 @@ export interface VoiceCommandContext {
   entities: HAEntity[];
   summary: SecuritySummary;
   entityLocations: EntityLocationMaps;
+  alarmCode?: string;
   callService: (
     domain: string,
     service: string,
@@ -34,16 +35,6 @@ function alarmPhrase(state: string): string {
   }
 }
 
-function isMotionEntity(entity: HAEntity): boolean {
-  const dc = (entity.attributes.device_class as string) || "";
-  return getDomain(entity.entity_id) === "binary_sensor" && ["motion", "occupancy", "vibration"].includes(dc);
-}
-
-function isDoorEntity(entity: HAEntity): boolean {
-  const dc = (entity.attributes.device_class as string) || "";
-  return getDomain(entity.entity_id) === "binary_sensor" && ["door", "window", "garage_door", "opening"].includes(dc);
-}
-
 function findEntityByNameHint(entities: HAEntity[], hint: string, domains?: string[]): HAEntity | null {
   const q = hint.toLowerCase().trim();
   if (!q) return null;
@@ -53,6 +44,21 @@ function findEntityByNameHint(entities: HAEntity[], hint: string, domains?: stri
     pool.find((e) => e.entity_id.toLowerCase().includes(q.replace(/\s+/g, "_"))) ??
     null
   );
+}
+
+function describeMotion(ctx: VoiceCommandContext): string {
+  const active = ctx.entities.filter((e) => isMotionEntity(e) && isOnState(e.state));
+  if (!active.length) return "All clear — no motion or occupancy detected.";
+  const names = active.slice(0, 5).map((e) => getFriendlyName(e)).join(", ");
+  const extra = active.length > 5 ? ` and ${active.length - 5} more` : "";
+  return `Motion detected: ${names}${extra}.`;
+}
+
+function describeDoors(ctx: VoiceCommandContext): string {
+  const open = ctx.entities.filter((e) => isPerimeterEntity(e) && (isOnState(e.state) || e.state === "open"));
+  if (!open.length) return "All doors and windows look closed.";
+  const names = open.map((e) => getFriendlyName(e)).join(", ");
+  return `${open.length} opening${open.length > 1 ? "s" : ""} open: ${names}.`;
 }
 
 function describeCameras(ctx: VoiceCommandContext): string {
@@ -90,21 +96,6 @@ function describeCameraLocation(ctx: VoiceCommandContext): string {
   return `${describeCameras(ctx)}. Open the Cameras page to pick a feed.`;
 }
 
-function describeMotion(ctx: VoiceCommandContext): string {
-  const active = ctx.entities.filter((e) => isMotionEntity(e) && isOnState(e.state));
-  if (!active.length) return "All clear — no motion or occupancy detected.";
-  const names = active.slice(0, 5).map((e) => getFriendlyName(e)).join(", ");
-  const extra = active.length > 5 ? ` and ${active.length - 5} more` : "";
-  return `Motion detected: ${names}${extra}.`;
-}
-
-function describeDoors(ctx: VoiceCommandContext): string {
-  const open = ctx.entities.filter((e) => isDoorEntity(e) && (isOnState(e.state) || e.state === "open"));
-  if (!open.length) return "All doors and windows look closed.";
-  const names = open.map((e) => getFriendlyName(e)).join(", ");
-  return `${open.length} opening${open.length > 1 ? "s" : ""} open: ${names}.`;
-}
-
 function describeWeather(ctx: VoiceCommandContext): string {
   const snap = pickWeatherSnapshot(ctx.entities);
   if (!snap) return "No weather or temperature sensor found in Home Assistant.";
@@ -125,12 +116,9 @@ function describeCo2(ctx: VoiceCommandContext): string {
 }
 
 function describeBleTags(ctx: VoiceCommandContext): string {
-  const tags = ctx.entities.filter((e) => {
-    const id = e.entity_id.toLowerCase();
-    return id.includes("ble") || id.includes("tag") || getDomain(e.entity_id) === "device_tracker";
-  });
+  const tags = ctx.entities.filter(isBleTagEntity);
   if (!tags.length) return "No BLE tags or trackers found.";
-  const moving = tags.filter((e) => e.state === "moving" || e.state === "home" || isOnState(e.state));
+  const moving = tags.filter((e) => e.state === "moving" || e.state === "not_home");
   if (!moving.length) return `You have ${tags.length} BLE tag${tags.length > 1 ? "s" : ""}. All appear stationary.`;
   const names = moving.slice(0, 4).map((e) => `${getFriendlyName(e)} (${e.state})`).join(", ");
   return `BLE tags: ${names}.`;
@@ -210,6 +198,21 @@ ${triggered ? `- Triggered sensors:\n${triggered}` : "- No sensors currently tri
 Answer using the facts above. For camera location questions, use the HA area and IP from the camera list.`;
 }
 
+/** Detect arm/disarm voice intent — execution requires UI confirmation in VoicePage. */
+export function parseVoiceArmAction(text: string): ArmAction | null {
+  const lower = text.toLowerCase().replace(/^(hey\s+)?(argus|argo|arkus)\s*,?\s*/i, "").trim();
+  if (lower.includes("arm away")) return "arm_away";
+  if (lower.includes("arm home")) return "arm_home";
+  if (/\bdisarm\b/.test(lower)) return "disarm";
+  return null;
+}
+
+export const VOICE_ARM_REPLIES: Record<ArmAction, string> = {
+  arm_away: "Arming away now. Perimeter secured — I'll watch the sensors.",
+  arm_home: "Arming home mode. Interior motion may stay relaxed while you're inside.",
+  disarm: "Disarmed. Welcome home — perimeter is open.",
+};
+
 /**
  * Instant HA-backed replies for clear commands. Returns null → use Ollama.
  */
@@ -223,31 +226,8 @@ export async function runArgusLocalCommand(
     return describeStatus(ctx);
   }
 
-  if (lower.includes("arm away")) {
-    const alarm = ctx.entities.find((e) => e.entity_id.startsWith("alarm_control_panel."));
-    if (alarm) {
-      await ctx.callService("alarm_control_panel", "arm_away", { code: "" }, { entity_id: alarm.entity_id });
-      return "Arming away now. Perimeter secured — I'll watch the sensors.";
-    }
-    return "I can't arm away because there's no alarm panel in Home Assistant yet.";
-  }
-
-  if (lower.includes("arm home")) {
-    const alarm = ctx.entities.find((e) => e.entity_id.startsWith("alarm_control_panel."));
-    if (alarm) {
-      await ctx.callService("alarm_control_panel", "arm_home", { code: "" }, { entity_id: alarm.entity_id });
-      return "Arming home mode. Interior motion may stay relaxed while you're inside.";
-    }
-    return "No alarm panel found to arm.";
-  }
-
-  if (lower.includes("disarm")) {
-    const alarm = ctx.entities.find((e) => e.entity_id.startsWith("alarm_control_panel."));
-    if (alarm) {
-      await ctx.callService("alarm_control_panel", "disarm", { code: "" }, { entity_id: alarm.entity_id });
-      return "Disarmed. Welcome home — perimeter is open.";
-    }
-    return "No alarm panel found to disarm.";
+  if (parseVoiceArmAction(text)) {
+    return null;
   }
 
   if (/\b(where|location|located|which room|what room|area)\b/.test(lower) && /\b(cam|camera|feed)\b/.test(lower)) {

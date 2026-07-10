@@ -45,6 +45,12 @@ export function isSystemEntity(entity: HAEntity): boolean {
   const domain = getDomain(entity.entity_id);
   if (SYSTEM_DOMAINS.has(domain)) return true;
   if (entity.entity_id === "binary_sensor.updater") return true;
+  const id = entity.entity_id.toLowerCase();
+  if (getDomain(entity.entity_id) === "device_tracker") {
+    // User BLE/key tags are security devices, not HA system clutter
+    if (id.includes("ble") || id.includes("tag")) return false;
+    return true;
+  }
   return SYSTEM_ENTITY_PATTERNS.some((re) => re.test(entity.entity_id));
 }
 
@@ -56,7 +62,12 @@ export function isSecurityRelevant(entity: HAEntity): boolean {
   const dc = (entity.attributes.device_class as string) || "";
 
   if (domain === "binary_sensor") {
-    return ["motion", "occupancy", "door", "window", "garage_door", "vibration", "tamper", "sound", "smoke", "gas", "moisture"].includes(dc);
+    if (["motion", "occupancy", "door", "window", "garage_door", "vibration", "tamper", "sound", "smoke", "gas", "moisture"].includes(dc)) {
+      return true;
+    }
+    const id = entity.entity_id.toLowerCase();
+    if (/motion|pir|occupancy|person|animal|reolink/.test(id)) return true;
+    if (/door|window|garage|gate/.test(id)) return true;
   }
   if (domain === "sensor") {
     return ["battery", "signal_strength", "temperature", "humidity", "illuminance", "accelerometer"].includes(dc)

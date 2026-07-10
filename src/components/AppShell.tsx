@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { ArgusLogo } from "./ArgusLogo";
 import { AlertsBell } from "./AlertsBell";
@@ -16,20 +16,69 @@ const NAV = [
   { to: "/settings", icon: "bi-gear", label: "Settings" },
 ];
 
+function formatNavClock(): string {
+  return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function NavMetricBtn({
+  title,
+  icon,
+  value,
+  alert,
+  onClick,
+  className = "",
+}: {
+  title: string;
+  icon: string;
+  value: ReactNode;
+  alert?: boolean;
+  onClick: () => void;
+  className?: string;
+}) {
+  return (
+    <button type="button" className={`nav-metric nav-metric-btn${alert ? " alert" : ""} ${className}`.trim()} title={title} onClick={onClick}>
+      <i className={`bi ${icon}`} />
+      <strong className={alert ? "glow-red" : ""}>{value}</strong>
+    </button>
+  );
+}
+
 export function AppShell() {
   const { status, summary, config, entities, disconnect } = useHA();
   const navigate = useNavigate();
+  const [clock, setClock] = useState(formatNavClock);
 
   const weather = useMemo(() => pickWeatherSnapshot(entities), [entities]);
 
   const armed =
     summary.alarmState === "armed_away" ||
     summary.alarmState === "armed_home" ||
-    summary.alarmState === "armed_night" ||
-    summary.alarmState === "triggered";
+    summary.alarmState === "armed_night";
 
   const breach = summary.alarmState === "triggered";
   const alertActive = breach || summary.motionActive > 0 || summary.doorOpen > 0;
+
+  const sensorTotal = summary.motionCount + summary.bleTagCount;
+
+  const perimeterBrief = useMemo(() => {
+    if (breach) return { text: "BREACH", cls: "glow-red", route: "/" as const };
+    if (summary.motionActive > 0) {
+      return { text: `${summary.motionActive} MOTION`, cls: "glow-amber", route: "/sensors" as const };
+    }
+    if (summary.doorOpen > 0) {
+      return { text: `${summary.doorOpen} OPEN`, cls: "glow-amber", route: "/" as const };
+    }
+    if (sensorTotal > 0) {
+      const health = summary.systemHealth < 100 ? ` · ${summary.systemHealth}%` : "";
+      return { text: `CLEAR · ${sensorTotal} sensors${health}`, cls: "glow-green", route: "/" as const };
+    }
+    return { text: "LINK SENSORS", cls: "", route: "/settings" as const };
+  }, [breach, summary, sensorTotal]);
+
+  useEffect(() => {
+    const tick = setInterval(() => setClock(formatNavClock()), 30_000);
+    return () => clearInterval(tick);
+  }, []);
 
   useEffect(() => {
     document.body.classList.toggle("system-armed", armed);
@@ -42,14 +91,14 @@ export function AppShell() {
 
   const dotClass =
     status === "connected"
-      ? summary.motionActive > 0 || summary.doorOpen > 0 || summary.alarmState === "triggered"
+      ? breach || summary.motionActive > 0 || summary.doorOpen > 0
         ? "dot-alert"
         : "dot-online"
       : "dot-offline";
 
   const statusLabel =
     status === "connected"
-      ? summary.alarmState === "triggered"
+      ? breach
         ? "INTRUSION"
         : armed
           ? "ARMED"
@@ -84,41 +133,117 @@ export function AppShell() {
         <div className="nav-hud">
           <div className="nav-hud-status">
             <span className={`status-dot ${dotClass}`} />
-            <span className={armed ? "glow-red" : status === "connected" ? "glow-green" : ""}>
+            <span className={breach ? "glow-red" : armed ? "glow-red" : status === "connected" ? "glow-green" : ""}>
               {statusLabel}
             </span>
           </div>
 
           <span className="nav-hud-sep" aria-hidden />
 
-          {armed ? (
+          {breach ? (
+            <span className="badge-mode badge-breach">BREACH</span>
+          ) : armed ? (
             <span className="badge-mode badge-armed">SECURE</span>
           ) : status === "connected" ? (
             <span className="badge-mode badge-safe">DISARMED</span>
           ) : null}
 
-          <span className="nav-hud-sep" aria-hidden />
+          <span className="nav-hud-sep nav-hud-sep--brief" aria-hidden />
 
-          <div className="nav-metrics">
-            <span className="nav-metric" title="Cameras">
-              <i className="bi bi-camera-video" />
-              <strong>{summary.cameraCount}</strong>
-            </span>
-            <span className="nav-metric" title="Active motion">
-              <i className="bi bi-broadcast" />
-              <strong className={summary.motionActive ? "glow-red" : ""}>{summary.motionActive}</strong>
-            </span>
-            <span className="nav-metric" title="Open doors/windows">
-              <i className="bi bi-door-open" />
-              <strong className={summary.doorOpen ? "glow-red" : ""}>{summary.doorOpen}</strong>
-            </span>
+          <button
+            type="button"
+            className={`nav-hud-brief${perimeterBrief.cls ? ` ${perimeterBrief.cls}` : ""}`}
+            title="Perimeter status — tap to open"
+            onClick={() => navigate(perimeterBrief.route)}
+          >
+            {perimeterBrief.text}
+          </button>
+
+          <span className="nav-hud-sep nav-hud-sep--metrics" aria-hidden />
+
+          <div className="nav-metrics nav-metrics--desktop">
+            <NavMetricBtn
+              title="Cameras — open feeds"
+              icon="bi-camera-video"
+              value={summary.cameraCount}
+              onClick={() => navigate("/cameras")}
+            />
+            <NavMetricBtn
+              title={`Motion — ${summary.motionActive} active of ${summary.motionCount}`}
+              icon="bi-person-walking"
+              value={`${summary.motionActive}/${summary.motionCount}`}
+              alert={summary.motionActive > 0}
+              onClick={() => navigate("/sensors")}
+            />
+            <NavMetricBtn
+              title="Open doors and windows"
+              icon="bi-door-open"
+              value={summary.doorOpen}
+              alert={summary.doorOpen > 0}
+              onClick={() => navigate("/")}
+            />
+            {summary.bleTagCount > 0 && (
+              <NavMetricBtn
+                title="BLE tags and trackers"
+                icon="bi-bluetooth"
+                value={summary.bleTagCount}
+                onClick={() => navigate("/sensors")}
+              />
+            )}
+            <NavMetricBtn
+              title="Sensor health — online vs unavailable"
+              icon="bi-heart-pulse"
+              value={`${summary.systemHealth}%`}
+              alert={summary.systemHealth < 90}
+              onClick={() => navigate("/sensors")}
+            />
             {weather && (
-              <span className="nav-metric nav-metric--weather" title={weather.label}>
+              <button
+                type="button"
+                className="nav-metric nav-metric-btn nav-metric--weather"
+                title={`${weather.label} — ${weather.temp ?? ""} ${weather.humidity ?? ""}`.trim()}
+                onClick={() => navigate("/sensors")}
+              >
                 <i className={`bi ${weather.icon}`} />
                 <span className="weather-loc">{weather.location}</span>
                 {weather.temp && <strong>{weather.temp}</strong>}
                 {weather.humidity && <span className="weather-humidity">{weather.humidity}</span>}
-              </span>
+              </button>
+            )}
+            <span className="nav-metric nav-metric--clock" title="Local time">
+              <i className="bi bi-clock" />
+              <strong>{clock}</strong>
+            </span>
+          </div>
+
+          <div className="nav-metrics nav-metrics--mobile">
+            <NavMetricBtn
+              title="Motion sensors"
+              icon="bi-person-walking"
+              value={summary.motionActive}
+              alert={summary.motionActive > 0}
+              onClick={() => navigate("/sensors")}
+            />
+            <NavMetricBtn
+              title="Openings"
+              icon="bi-door-open"
+              value={summary.doorOpen}
+              alert={summary.doorOpen > 0}
+              onClick={() => navigate("/")}
+            />
+            <NavMetricBtn
+              title="Cameras"
+              icon="bi-camera-video"
+              value={summary.cameraCount}
+              onClick={() => navigate("/cameras")}
+            />
+            {summary.bleTagCount > 0 && (
+              <NavMetricBtn
+                title="BLE tags"
+                icon="bi-bluetooth"
+                value={summary.bleTagCount}
+                onClick={() => navigate("/sensors")}
+              />
             )}
           </div>
         </div>

@@ -25,6 +25,10 @@ export interface HAConfig {
 
 export interface ArgusPreferences {
   dashboardCameras: [string, string];
+  /** HA alarm panel code (empty if panel does not require one). */
+  alarmCode?: string;
+  /** Pinned entity IDs for home quick controls (up to 6). Empty slot = unused. */
+  quickControls: [string, string, string, string, string, string];
 }
 
 export interface HALogbookEntry {

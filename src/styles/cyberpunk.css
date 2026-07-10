@@ -5,6 +5,7 @@
   --bg-grad-1: #060c16;
   --card: #080f1a;
   --card-elevated: #0c1524;
+  --panel: #0a1018;
   --border: #152238;
   --border-glow: rgba(0, 229, 255, 0.22);
   --border-threat: rgba(255, 26, 75, 0.35);
@@ -308,6 +309,55 @@ body.system-armed .argus-logo--glow,
   gap: 0.65rem;
   flex-wrap: wrap;
 }
+
+.nav-metrics--mobile { display: none; }
+
+.nav-hud-brief {
+  border: none;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 3px 8px;
+  font-family: Orbitron, sans-serif;
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: border-color 0.2s, color 0.2s;
+  border: 1px solid rgba(21, 34, 56, 0.9);
+  touch-action: manipulation;
+}
+
+.nav-hud-brief:hover {
+  border-color: rgba(0, 229, 255, 0.45);
+  color: var(--neon-cyan);
+}
+
+.nav-metric-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 2px;
+  touch-action: manipulation;
+  transition: background 0.15s;
+}
+
+.nav-metric-btn:hover {
+  background: rgba(0, 229, 255, 0.08);
+}
+
+.nav-metric-btn.alert .bi { color: var(--red); }
+
+.nav-metric--clock {
+  cursor: default;
+  opacity: 0.85;
+}
+
+.nav-metric--clock .bi { color: var(--muted); }
 
 .nav-metric {
   display: inline-flex;
@@ -659,6 +709,17 @@ body.system-armed .argus-logo--glow,
 
 .badge-armed { border-color: var(--red); background: rgba(255, 43, 90, 0.12); color: var(--red); }
 .badge-safe { border-color: var(--neon-green); background: rgba(0, 255, 136, 0.12); color: var(--neon-green); }
+.badge-breach {
+  border-color: var(--red);
+  background: rgba(255, 26, 75, 0.22);
+  color: var(--red);
+  animation: navBreachBadge 1.8s ease-in-out infinite;
+}
+
+@keyframes navBreachBadge {
+  0%, 100% { box-shadow: 0 0 0 rgba(255, 26, 75, 0); }
+  50% { box-shadow: 0 0 12px rgba(255, 26, 75, 0.45); }
+}
 
 .stat-chip {
   font-size: 0.68rem;
@@ -1154,6 +1215,10 @@ body.system-armed .argus-logo--glow,
   word-break: break-word;
 }
 
+.voice-chat-log {
+  height: 360px;
+}
+
 .entity-tile.unknown .entity-state { color: var(--muted); font-size: 0.8rem; }
 .sidebar-link .lbl {
   font-family: Orbitron, sans-serif;
@@ -1331,7 +1396,34 @@ body.system-armed .argus-logo--glow,
   .nav-hud-sep { height: 14px; }
   .nav-hud-sep:last-of-type { display: none; }
 
-  .nav-metrics { display: none; }
+  .nav-hud-sep--metrics { display: none; }
+
+  .nav-metrics--desktop { display: none; }
+
+  .nav-metrics--mobile {
+    display: flex;
+    gap: 0.2rem;
+  }
+
+  .nav-metrics--mobile .nav-metric-btn {
+    min-width: 34px;
+    min-height: 34px;
+    justify-content: center;
+    padding: 2px 5px;
+  }
+
+  .nav-metrics--mobile .nav-metric {
+    font-size: 0.58rem;
+    gap: 0.2rem;
+  }
+
+  .nav-hud-brief {
+    font-size: 0.52rem;
+    max-width: 5.5rem;
+    padding: 2px 5px;
+  }
+
+  .nav-hud-sep--brief { display: none; }
 
   .badge-mode {
     font-size: 0.52rem;
@@ -1471,11 +1563,13 @@ body.system-armed .argus-logo--glow,
 
 @media (max-width: 390px) {
   .nav-hud-status span:not(.status-dot) {
-    max-width: 4.2rem;
+    max-width: 5.5rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+
+  .nav-hud-brief { max-width: 4.5rem; }
 }
 
 .stat-value {
@@ -1644,6 +1738,12 @@ body.system-armed .argus-logo--glow,
   box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.6);
 }
 
+.log-terminal--compact {
+  height: auto;
+  min-height: 2.5rem;
+  max-height: 5rem;
+}
+
 .connect-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
 .connect-panel {
   width: min(420px, 100%);
@@ -1708,6 +1808,14 @@ body.system-armed .argus-logo--glow,
 .camera-feed { width: 100%; aspect-ratio: 16/9; background: #000; border: 1px solid var(--border); object-fit: cover; display: block; }
 
 .camera-feed-body { padding: 0 !important; position: relative; min-height: 120px; }
+
+.camera-feed-focus {
+  outline: 2px solid var(--neon-cyan);
+  outline-offset: 3px;
+  box-shadow: 0 0 24px rgba(0, 240, 255, 0.35);
+  border-radius: 4px;
+  transition: box-shadow 0.3s ease, outline-color 0.3s ease;
+}
 
 .camera-feed-badges { display: flex; align-items: center; gap: 6px; margin-left: auto; }
 
@@ -1943,11 +2051,29 @@ body.system-armed .argus-logo--glow,
   width: min(340px, 85vw);
   max-height: 360px;
   overflow-y: auto;
-  background: var(--panel);
+  background-color: var(--panel);
+  background-image: linear-gradient(180deg, var(--card-elevated) 0%, var(--panel) 100%);
   border: 1px solid var(--neon-cyan);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.85),
+    inset 0 1px 0 rgba(0, 229, 255, 0.06);
   padding: 0.5rem;
 }
+
+.voice-commands-panel::-webkit-scrollbar {
+  width: 8px;
+}
+.voice-commands-panel::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.35);
+}
+.voice-commands-panel::-webkit-scrollbar-thumb {
+  background: rgba(0, 229, 255, 0.25);
+  border-radius: 4px;
+}
+.voice-commands-panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 229, 255, 0.4);
+}
+
 .voice-cmd-group { margin-bottom: 0.65rem; }
 .voice-cmd-cat {
   font-family: Orbitron, sans-serif;
@@ -1987,6 +2113,55 @@ body.system-armed .argus-logo--glow,
   margin-top: 2px;
   line-height: 1.35;
 }
+
+@media (max-width: 768px) {
+  .voice-commands-panel {
+    position: fixed;
+    top: auto;
+    bottom: calc(var(--bottom-nav-h) + 0.65rem);
+    left: max(0.65rem, env(safe-area-inset-left, 0px));
+    right: max(0.65rem, env(safe-area-inset-right, 0px));
+    width: auto;
+    max-height: min(52vh, 400px);
+    z-index: 1100;
+  }
+
+  .voice-cmd-item {
+    min-height: 44px;
+    padding: 0.55rem 0.5rem;
+  }
+
+  .voice-chat-actions .btn-cyber-mini {
+    min-height: 40px;
+    min-width: 40px;
+    touch-action: manipulation;
+  }
+
+  .voice-panel {
+    min-height: 280px;
+    padding: 1rem !important;
+  }
+
+  .voice-mic {
+    width: 96px;
+    height: 96px;
+  }
+
+  .voice-chat-log {
+    height: min(42vh, 320px);
+    min-height: 200px;
+  }
+
+  .alerts-panel {
+    position: fixed;
+    top: calc(var(--nav-h) + env(safe-area-inset-top, 0px) + 8px);
+    right: max(0.65rem, env(safe-area-inset-right, 0px));
+    left: max(0.65rem, env(safe-area-inset-left, 0px));
+    width: auto;
+    max-height: min(60vh, 480px);
+  }
+}
+
 .voice-hints-card summary::-webkit-details-marker {
   display: none;
 }

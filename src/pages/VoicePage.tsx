@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import { useHA } from "../context/HAContext";
 import { useArgusMic } from "../hooks/useArgusMic";
-import { buildArgusSystemPrompt, runArgusLocalCommand } from "../lib/argusVoice";
+import { buildArgusSystemPrompt, parseVoiceArmAction, runArgusLocalCommand, VOICE_ARM_REPLIES } from "../lib/argusVoice";
+import { ARM_ACTIONS, type ArmAction } from "../lib/homeSensors";
 import { ARGUS_VOICE_COMMANDS, VOICE_COMMAND_CATEGORIES } from "../lib/voiceCommands";
 import { askOllama, loadOllamaConfig, type OllamaConfig } from "../lib/ollama";
+import { getDomain } from "../types";
 
 const VOICE_MUTE_KEY = "argus_voice_muted";
 
@@ -28,8 +31,9 @@ function formatMeta(source: ReplySource, model?: string, latencyMs?: number, tok
 }
 
 export function VoicePage() {
-  const { entities, summary, callService, entityLocations } = useHA();
+  const { entities, summary, callService, entityLocations, preferences } = useHA();
   const navigate = useNavigate();
+  const [pendingArm, setPendingArm] = useState<ArmAction | null>(null);
   const [ollama, setOllama] = useState<OllamaConfig | null>(() => loadOllamaConfig());
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -103,10 +107,11 @@ export function VoicePage() {
         entities,
         summary,
         entityLocations,
+        alarmCode: preferences.alarmCode,
         callService,
       });
     },
-    [entities, summary, entityLocations, callService],
+    [entities, summary, entityLocations, preferences.alarmCode, callService],
   );
 
   const respond = useCallback(
@@ -160,7 +165,67 @@ export function VoicePage() {
     if (listening) stopMic();
     setMessages((prev) => [...prev, { role: "user", text: trimmed }]);
     setInput("");
+
+    const armAction = parseVoiceArmAction(trimmed);
+    if (armAction) {
+      const alarm = entities.find((e) => getDomain(e.entity_id) === "alarm_control_panel");
+      if (!alarm) {
+        const noPanel =
+          armAction === "disarm"
+            ? "No alarm panel found to disarm."
+            : "I can't arm because there's no alarm panel in Home Assistant yet.";
+        setMessages((prev) => [
+          ...prev,
+          { role: "argus", text: noPanel, meta: formatMeta("local"), source: "local" as const },
+        ]);
+        speak(noPanel);
+        return;
+      }
+      setPendingArm(armAction);
+      const prompt = `${ARM_ACTIONS[armAction].title.replace("?", "")} — confirm below or tap Cancel.`;
+      setMessages((prev) => [
+        ...prev,
+        { role: "argus", text: prompt, meta: "CONFIRM · security action", source: "local" as const },
+      ]);
+      speak(prompt);
+      return;
+    }
+
     await respond(trimmed);
+  };
+
+  const runArm = async (mode: ArmAction) => {
+    const alarm = entities.find((e) => getDomain(e.entity_id) === "alarm_control_panel");
+    if (!alarm) {
+      setPendingArm(null);
+      return;
+    }
+    setBusy(true);
+    setBusyLabel("Arming…");
+    try {
+      await callService(
+        "alarm_control_panel",
+        mode,
+        { code: preferences.alarmCode ?? "" },
+        { entity_id: alarm.entity_id },
+      );
+      const reply = VOICE_ARM_REPLIES[mode];
+      setMessages((prev) => [
+        ...prev,
+        { role: "argus", text: reply, meta: formatMeta("local"), source: "local" as const },
+      ]);
+      speak(reply);
+    } catch (e) {
+      const err = `Alarm command failed: ${e instanceof Error ? e.message : "unknown error"}`;
+      setMessages((prev) => [
+        ...prev,
+        { role: "argus", text: err, meta: formatMeta("error"), source: "error" as const },
+      ]);
+    } finally {
+      setBusyLabel("");
+      setBusy(false);
+      setPendingArm(null);
+    }
   };
 
   const runModelTest = () => {
@@ -328,7 +393,7 @@ export function VoicePage() {
               </button>
             </div>
           </div>
-          <div className="card-body log-terminal voice-chat" style={{ height: 360 }}>
+          <div className="card-body log-terminal voice-chat voice-chat-log">
             {messages.map((m, i) => (
               <div key={i} className={`chat-bubble ${m.role}${m.source === "ollama" ? " ollama-reply" : ""}`}>
                 <div className="who">{m.role === "user" ? "YOU" : "ARGUS"}</div>
@@ -362,6 +427,18 @@ export function VoicePage() {
           <p style={{ marginTop: 6 }}>Use the <strong>speaker button</strong> to mute spoken replies. Say <strong>“ARGUS, …”</strong> or type commands from the <strong>COMMANDS</strong> menu.</p>
         </div>
       </details>
+
+      {pendingArm && (
+        <ConfirmDialog
+          open
+          title={ARM_ACTIONS[pendingArm].title}
+          message={ARM_ACTIONS[pendingArm].body}
+          confirmLabel={ARM_ACTIONS[pendingArm].confirm}
+          variant={ARM_ACTIONS[pendingArm].variant}
+          onConfirm={() => runArm(pendingArm)}
+          onCancel={() => setPendingArm(null)}
+        />
+      )}
     </>
   );
 }

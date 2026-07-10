@@ -12,13 +12,14 @@ import { resolveHaUsername } from "../lib/auth";
 import { HomeAssistantClient } from "../lib/homeassistant";
 import type { ArgusPreferences, ConnectionStatus, EntityLocationMaps, HAConfig, HAEntity, HAAreaRegistryEntry, HADeviceRegistryEntry, HAEntityRegistryEntry, SecuritySummary } from "../types";
 import {
-  PREFS_KEY,
   STORAGE_KEY,
   STORAGE_KEY_LEGACY,
   classifyEntity,
   getDomain,
   isOnState,
 } from "../types";
+import { isBleTagEntity, isMotionEntity, isPerimeterEntity } from "../lib/homeSensors";
+import { loadPreferences, savePreferences } from "../lib/preferences";
 import { normalizeHaConfigInStorage } from "../lib/settingsMigrate";
 
 function buildEntityLocationMaps(
@@ -86,6 +87,7 @@ interface HAContextValue {
   toggleEntity: (entity: HAEntity) => Promise<void>;
   refreshStates: () => Promise<void>;
   setDashboardCameras: (cam1: string, cam2: string) => void;
+  updatePreferences: (patch: Partial<import("../types").ArgusPreferences>) => void;
 }
 
 const HAContext = createContext<HAContextValue | null>(null);
@@ -129,39 +131,16 @@ function clearStoredConfig() {
   sessionStorage.removeItem(STORAGE_KEY);
 }
 
-function loadPreferences(): ArgusPreferences {
-  try {
-    const raw = localStorage.getItem(PREFS_KEY);
-    if (raw) return JSON.parse(raw) as ArgusPreferences;
-  } catch {
-    /* ignore */
-  }
-  return { dashboardCameras: ["", ""] };
-}
-
 function computeSummary(entities: HAEntity[]): SecuritySummary {
   const alarms = entities.filter((e) => getDomain(e.entity_id) === "alarm_control_panel");
   const alarmState = alarms[0]?.state ?? "disarmed";
 
-  const motion = entities.filter(
-    (e) =>
-      getDomain(e.entity_id) === "binary_sensor" &&
-      ["motion", "occupancy", "vibration"].includes((e.attributes.device_class as string) || "")
-  );
+  const motion = entities.filter(isMotionEntity);
 
-  const doors = entities.filter(
-    (e) =>
-      getDomain(e.entity_id) === "binary_sensor" &&
-      ["door", "window", "garage_door"].includes((e.attributes.device_class as string) || "")
-  );
+  const doors = entities.filter(isPerimeterEntity);
 
   const cameras = entities.filter((e) => getDomain(e.entity_id) === "camera");
-  const bleTags = entities.filter(
-    (e) =>
-      e.entity_id.includes("ble") ||
-      e.entity_id.includes("tag") ||
-      (e.attributes.device_class as string) === "accelerometer"
-  );
+  const bleTags = entities.filter(isBleTagEntity);
 
   const securityEntities = entities.filter((e) => classifyEntity(e) === "security");
   const healthy = securityEntities.filter((e) => e.state !== "unavailable" && e.state !== "unknown").length;
@@ -326,9 +305,19 @@ export function HAProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setDashboardCameras = useCallback((cam1: string, cam2: string) => {
-    const prefs: ArgusPreferences = { dashboardCameras: [cam1, cam2] };
-    setPreferences(prefs);
-    localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+    setPreferences((prev) => {
+      const next = { ...prev, dashboardCameras: [cam1, cam2] as [string, string] };
+      savePreferences(next);
+      return next;
+    });
+  }, []);
+
+  const updatePreferences = useCallback((patch: Partial<ArgusPreferences>) => {
+    setPreferences((prev) => {
+      const next = { ...prev, ...patch };
+      savePreferences(next);
+      return next;
+    });
   }, []);
 
   useEffect(() => {
@@ -393,8 +382,9 @@ export function HAProvider({ children }: { children: ReactNode }) {
       toggleEntity,
       refreshStates,
       setDashboardCameras,
+      updatePreferences,
     }),
-    [status, error, entities, config, summary, preferences, entityLocations, connect, disconnect, callService, toggleEntity, refreshStates, setDashboardCameras]
+    [status, error, entities, config, summary, preferences, entityLocations, connect, disconnect, callService, toggleEntity, refreshStates, setDashboardCameras, updatePreferences]
   );
 
   return <HAContext.Provider value={value}>{children}</HAContext.Provider>;

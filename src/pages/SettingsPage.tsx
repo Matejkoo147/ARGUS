@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import { useHA } from "../context/HAContext";
 import { CAMERA_SLOT_NONE, getCameraDisplayLabel } from "../lib/cameras";
 import { maskToken } from "../lib/auth";
+import { controllableEntities, QUICK_CONTROL_SLOTS } from "../lib/preferences";
 import { loadOllamaConfig, saveOllamaConfig, testOllama, getDefaultOllama, type OllamaApiMode, type OllamaConfig } from "../lib/ollama";
 import { defaultHaProxyUrl } from "../lib/settingsMigrate";
-import { getDomain } from "../types";
+import { getDomain, getFriendlyName } from "../types";
 
 export function SettingsPage() {
-  const { config, connect, disconnect, status, refreshStates, entities, preferences, setDashboardCameras, entityLocations } = useHA();
+  const { config, connect, disconnect, status, refreshStates, entities, preferences, setDashboardCameras, updatePreferences, entityLocations } = useHA();
   const [url, setUrl] = useState(config?.url ?? defaultHaProxyUrl());
   const [token, setToken] = useState(config?.token ?? "");
   const [displayName, setDisplayName] = useState(config?.username ?? "");
@@ -22,13 +23,18 @@ export function SettingsPage() {
 
   const [cam1, setCam1] = useState(preferences.dashboardCameras[0]);
   const [cam2, setCam2] = useState(preferences.dashboardCameras[1]);
+  const [alarmCode, setAlarmCode] = useState(preferences.alarmCode ?? "");
+  const [quickSlots, setQuickSlots] = useState<string[]>([...preferences.quickControls]);
 
   const cameras = entities.filter((e) => getDomain(e.entity_id) === "camera");
+  const controls = controllableEntities(entities);
 
   useEffect(() => {
     setCam1(preferences.dashboardCameras[0]);
     setCam2(preferences.dashboardCameras[1]);
-  }, [preferences.dashboardCameras]);
+    setAlarmCode(preferences.alarmCode ?? "");
+    setQuickSlots([...preferences.quickControls]);
+  }, [preferences.dashboardCameras, preferences.alarmCode, preferences.quickControls]);
 
   useEffect(() => {
     const o = loadOllamaConfig();
@@ -70,6 +76,15 @@ export function SettingsPage() {
 
   const handleSaveCameras = () => {
     setDashboardCameras(cam1, cam2);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const handleSaveSecurity = () => {
+    updatePreferences({
+      alarmCode: alarmCode.trim(),
+      quickControls: quickSlots.slice(0, QUICK_CONTROL_SLOTS) as typeof preferences.quickControls,
+    });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -168,6 +183,71 @@ export function SettingsPage() {
             {cameras.length === 0 && (
               <p style={{ color: "var(--muted)", fontSize: "0.72rem", marginTop: 8 }}>
                 No cameras in HA yet. Add ESP32-CAM, USB cam, or Frigate integration.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid-2" style={{ marginTop: "1rem" }}>
+        <div className="card">
+          <div className="card-header"><i className="bi bi-shield-lock-fill" /> Security</div>
+          <div className="card-body">
+            <p className="field-hint" style={{ marginBottom: "1rem", fontSize: "0.72rem", opacity: 0.85 }}>
+              Alarm code is sent to Home Assistant when you arm or disarm. Leave blank if your panel does not require a code.
+            </p>
+            <div className="field">
+              <label htmlFor="set-alarm-code">Alarm code</label>
+              <input
+                id="set-alarm-code"
+                className="cyber-input"
+                type="password"
+                inputMode="numeric"
+                autoComplete="off"
+                value={alarmCode}
+                onChange={(e) => setAlarmCode(e.target.value)}
+                placeholder="Optional — e.g. 1234"
+              />
+            </div>
+            <button type="button" className="btn-cyber action" onClick={handleSaveSecurity}>
+              SAVE SECURITY
+            </button>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-header"><i className="bi bi-lightning-charge" /> Quick controls (Home)</div>
+          <div className="card-body">
+            <p className="field-hint" style={{ marginBottom: "1rem", fontSize: "0.72rem", opacity: 0.85 }}>
+              Pin up to {QUICK_CONTROL_SLOTS} lights, switches, locks, or sirens on the Home page. Leave a slot empty to skip it. If all empty, ARGUS auto-picks the first controllable devices.
+            </p>
+            {Array.from({ length: QUICK_CONTROL_SLOTS }, (_, i) => (
+              <div className="field" key={i}>
+                <label>Slot {i + 1}</label>
+                <select
+                  className="cyber-select"
+                  value={quickSlots[i] ?? ""}
+                  onChange={(e) => {
+                    const next = [...quickSlots];
+                    next[i] = e.target.value;
+                    setQuickSlots(next);
+                  }}
+                >
+                  <option value="">None</option>
+                  {controls.map((c) => (
+                    <option key={c.entity_id} value={c.entity_id}>
+                      {getFriendlyName(c)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ))}
+            <button type="button" className="btn-cyber action" onClick={handleSaveSecurity}>
+              SAVE QUICK CONTROLS
+            </button>
+            {controls.length === 0 && (
+              <p style={{ color: "var(--muted)", fontSize: "0.72rem", marginTop: 8 }}>
+                No controllable devices yet. Add lights or switches in Home Assistant.
               </p>
             )}
           </div>

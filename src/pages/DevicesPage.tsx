@@ -12,15 +12,25 @@ const CATEGORY_HINTS: Record<string, string> = {
 };
 
 export function DevicesPage() {
-  const { entities, toggleEntity } = useHA();
+  const { entities, toggleEntity, entityLocations } = useHA();
   const [filter, setFilter] = useState("");
   const [domainFilter, setDomainFilter] = useState("all");
+  const [areaFilter, setAreaFilter] = useState("all");
   const [showSystem, setShowSystem] = useState(false);
 
   const visible = useMemo(
     () => (showSystem ? entities : entities.filter((e) => !isSystemEntity(e))),
-    [entities, showSystem]
+    [entities, showSystem],
   );
+
+  const areas = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of visible) {
+      const area = entityLocations.areas[e.entity_id];
+      if (area) set.add(area);
+    }
+    return ["all", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
+  }, [visible, entityLocations.areas]);
 
   const domains = useMemo(() => {
     const set = new Set(visible.map((e) => getDomain(e.entity_id)));
@@ -31,13 +41,19 @@ export function DevicesPage() {
     const q = filter.toLowerCase();
     return visible.filter((e) => {
       if (domainFilter !== "all" && getDomain(e.entity_id) !== domainFilter) return false;
+      if (areaFilter !== "all") {
+        const area = entityLocations.areas[e.entity_id] ?? "";
+        if (area !== areaFilter) return false;
+      }
       if (!q) return true;
+      const area = entityLocations.areas[e.entity_id] ?? "";
       return (
         e.entity_id.toLowerCase().includes(q) ||
-        getFriendlyName(e).toLowerCase().includes(q)
+        getFriendlyName(e).toLowerCase().includes(q) ||
+        area.toLowerCase().includes(q)
       );
     });
-  }, [visible, filter, domainFilter]);
+  }, [visible, filter, domainFilter, areaFilter, entityLocations.areas]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, typeof filtered>();
@@ -64,6 +80,18 @@ export function DevicesPage() {
           onChange={(e) => setFilter(e.target.value)}
         />
         <div className="filter-bar-controls">
+          <select
+            className="cyber-select filter-bar-domain"
+            value={areaFilter}
+            onChange={(e) => setAreaFilter(e.target.value)}
+            aria-label="Filter by area"
+          >
+            {areas.map((a) => (
+              <option key={a} value={a}>
+                {a === "all" ? "all areas" : a}
+              </option>
+            ))}
+          </select>
           <select
             className="cyber-select filter-bar-domain"
             value={domainFilter}

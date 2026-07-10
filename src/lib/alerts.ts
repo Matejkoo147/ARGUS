@@ -1,4 +1,5 @@
-import { formatEntityState, isSecurityRelevant } from "./entities";
+import { formatEntityState } from "./entities";
+import { isBleTagEntity, isMotionEntity, isPerimeterEntity } from "./homeSensors";
 import type { HALogbookEntry, HAEntity } from "../types";
 import { getDomain, getFriendlyName, isOnState } from "../types";
 
@@ -28,6 +29,9 @@ function alertKindForEntity(entity: HAEntity): AlertKind {
   if (domain === "alarm_control_panel") return "breach";
   if (domain === "camera") return "camera";
   if (domain === "lock") return "lock";
+  if (isPerimeterEntity(entity)) return "door";
+  if (isMotionEntity(entity)) return "motion";
+  if (isBleTagEntity(entity)) return "sensor";
   if (["door", "window", "garage_door"].includes(dc)) return "door";
   if (["motion", "occupancy", "vibration"].includes(dc)) return "motion";
   if (dc === "tamper" || dc === "smoke" || dc === "gas") return "tamper";
@@ -40,6 +44,8 @@ function severityForEntity(entity: HAEntity, armed: boolean): AlertSeverity {
   if (entity.state === "triggered" || entity.state === "pending") return "critical";
   if (dc === "tamper" || dc === "smoke" || dc === "gas") return "critical";
   if (domain === "lock" && entity.state === "unlocked") return armed ? "critical" : "warning";
+  if (isPerimeterEntity(entity)) return armed ? "critical" : "warning";
+  if (isMotionEntity(entity) || isBleTagEntity(entity)) return armed ? "warning" : "info";
   if (["door", "window", "garage_door"].includes(dc)) return armed ? "critical" : "warning";
   if (["motion", "occupancy", "vibration"].includes(dc)) return armed ? "warning" : "info";
   return "warning";
@@ -104,21 +110,42 @@ export function findRelatedCamera(entity: HAEntity, entities: HAEntity[]): HAEnt
     }
   }
 
-  return bestScore > 0 ? best : cameras[0];
+  return bestScore > 0 ? best : null;
+}
+
+/** Entities that should surface as live perimeter alerts (not lights/switches). */
+export function isLiveAlertCandidate(entity: HAEntity): boolean {
+  const domain = getDomain(entity.entity_id);
+  if (domain === "alarm_control_panel" || domain === "camera" || domain === "lock" || domain === "siren") {
+    return true;
+  }
+  if (isMotionEntity(entity) || isPerimeterEntity(entity) || isBleTagEntity(entity)) return true;
+  const dc = (entity.attributes.device_class as string) || "";
+  if (domain === "binary_sensor") {
+    return ["tamper", "smoke", "gas", "sound", "moisture"].includes(dc);
+  }
+  return false;
 }
 
 function isActiveAlertState(entity: HAEntity): boolean {
+  const domain = getDomain(entity.entity_id);
   const s = entity.state.toLowerCase();
   if (s === "unknown" || s === "unavailable") return false;
-  if (getDomain(entity.entity_id) === "alarm_control_panel") {
+  if (domain === "alarm_control_panel") {
     return s === "triggered" || s === "pending";
   }
-  return isOnState(entity.state) || s === "triggered" || s === "moving" || s === "unlocked";
+  if (domain === "device_tracker") {
+    return s === "moving" || s === "not_home";
+  }
+  if (isBleTagEntity(entity)) {
+    return s === "moving" || s === "on";
+  }
+  return isOnState(entity.state) || s === "triggered" || s === "unlocked";
 }
 
 export function buildLiveAlerts(entities: HAEntity[], armed: boolean): ArgusAlert[] {
   return entities
-    .filter(isSecurityRelevant)
+    .filter(isLiveAlertCandidate)
     .filter(isActiveAlertState)
     .map((entity) => {
       const kind = alertKindForEntity(entity);

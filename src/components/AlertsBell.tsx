@@ -54,16 +54,18 @@ export function AlertsBell() {
 
   useEffect(() => {
     if (!open) return;
-    const onDoc = (ev: MouseEvent) => {
+    const onDoc = (ev: MouseEvent | TouchEvent) => {
       if (rootRef.current && !rootRef.current.contains(ev.target as Node)) setOpen(false);
     };
     const onKey = (ev: KeyboardEvent) => {
       if (ev.key === "Escape") setOpen(false);
     };
     document.addEventListener("mousedown", onDoc);
+    document.addEventListener("touchstart", onDoc, { passive: true });
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("touchstart", onDoc);
       document.removeEventListener("keydown", onKey);
     };
   }, [open]);
@@ -78,7 +80,7 @@ export function AlertsBell() {
   const openAlert = (alert: ArgusAlert) => {
     setOpen(false);
     if (alert.cameraEntityId && haUrl && token) {
-      navigate("/cameras");
+      navigate(`/cameras?focus=${encodeURIComponent(alert.cameraEntityId)}`);
       return;
     }
     navigate(alert.route);

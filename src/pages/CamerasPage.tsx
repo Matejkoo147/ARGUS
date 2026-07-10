@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { CameraFeed } from "../components/CameraFeed";
 import { useHA } from "../context/HAContext";
 import { getCameraDisplayLabel } from "../lib/cameras";
@@ -5,9 +7,25 @@ import { getDomain } from "../types";
 
 export function CamerasPage() {
   const { entities, config, entityLocations } = useHA();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const focusId = searchParams.get("focus");
+
   const cameras = entities.filter((e) => getDomain(e.entity_id) === "camera");
   const haUrl = config?.url ?? "";
   const token = config?.token ?? "";
+
+  useEffect(() => {
+    if (!focusId) return;
+    const el = document.getElementById(`camera-feed-${focusId}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("camera-feed-focus");
+    const t = setTimeout(() => {
+      el.classList.remove("camera-feed-focus");
+      setSearchParams({}, { replace: true });
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [focusId, cameras.length, setSearchParams]);
 
   return (
     <>
@@ -26,14 +44,19 @@ export function CamerasPage() {
       ) : (
         <div className="grid-2">
           {cameras.map((cam, i) => (
-            <CameraFeed
+            <div
               key={cam.entity_id}
-              entity={cam}
-              haUrl={haUrl}
-              token={token}
-              label={getCameraDisplayLabel(cam, entityLocations.areas, entityLocations.registryNames)}
-              slot={i % 2 === 0 ? 1 : 2}
-            />
+              id={`camera-feed-${cam.entity_id}`}
+              className={cam.entity_id === focusId ? "camera-feed-focus" : undefined}
+            >
+              <CameraFeed
+                entity={cam}
+                haUrl={haUrl}
+                token={token}
+                label={getCameraDisplayLabel(cam, entityLocations.areas, entityLocations.registryNames)}
+                slot={i % 2 === 0 ? 1 : 2}
+              />
+            </div>
           ))}
         </div>
       )}

@@ -16,6 +16,7 @@ export class HomeAssistantClient {
   private config: HAConfig;
   private pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private intentionalDisconnect = false;
   private _connected = false;
 
   onStateChanged?: (entity: HAEntity) => void;
@@ -37,6 +38,7 @@ export class HomeAssistantClient {
 
   connect(): Promise<void> {
     return new Promise((resolve, reject) => {
+      this.intentionalDisconnect = false;
       this.disconnect(false);
 
       const wsUrl = resolveHaWebSocketUrl(this.config.url);
@@ -98,13 +100,19 @@ export class HomeAssistantClient {
       this.ws.onclose = () => {
         this._connected = false;
         this.onDisconnected?.();
-        this.scheduleReconnect();
+        if (!this.intentionalDisconnect) this.scheduleReconnect();
       };
     });
   }
 
   disconnect(clearReconnect = true) {
-    if (clearReconnect && this.reconnectTimer) {
+    if (clearReconnect) {
+      this.intentionalDisconnect = true;
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
+    } else if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }

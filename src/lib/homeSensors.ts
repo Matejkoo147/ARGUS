@@ -22,43 +22,63 @@ const GROUP_LABELS: Record<HomeSensorGroup, string> = {
 
 const GROUP_ORDER: HomeSensorGroup[] = ["perimeter", "motion", "ble", "environment", "locks"];
 
-function isBleEntity(entity: HAEntity): boolean {
+const MOTION_DEVICE_CLASSES = new Set(["motion", "occupancy", "vibration", "tamper", "sound", "smoke", "gas"]);
+const PERIMETER_DEVICE_CLASSES = new Set(["door", "window", "garage_door", "opening"]);
+const ENV_DEVICE_CLASSES = new Set(["temperature", "humidity", "illuminance", "pressure", "carbon_dioxide"]);
+
+/** Shared motion detection — keep in sync with dashboard stats. */
+export function isMotionEntity(entity: HAEntity): boolean {
+  const domain = getDomain(entity.entity_id);
+  if (domain !== "binary_sensor") return false;
+  const dc = (entity.attributes.device_class as string) || "";
+  const id = entity.entity_id.toLowerCase();
+  if (MOTION_DEVICE_CLASSES.has(dc)) return true;
+  return /motion|pir|occupancy|person|animal|reolink/.test(id);
+}
+
+export function isPerimeterEntity(entity: HAEntity): boolean {
+  const domain = getDomain(entity.entity_id);
+  const dc = (entity.attributes.device_class as string) || "";
+  const id = entity.entity_id.toLowerCase();
+  if (domain === "cover") return true;
+  if (domain !== "binary_sensor") return false;
+  if (PERIMETER_DEVICE_CLASSES.has(dc)) return true;
+  return /door|window|garage|gate/.test(id);
+}
+
+export function isBleTagEntity(entity: HAEntity): boolean {
   const id = entity.entity_id.toLowerCase();
   const dc = (entity.attributes.device_class as string) || "";
   const domain = getDomain(entity.entity_id);
-  return (
-    id.includes("ble") ||
-    id.includes("tag") ||
-    id.includes("tracker") ||
-    dc === "accelerometer" ||
-    domain === "device_tracker"
-  );
+  if (id.includes("ble") || id.includes("tag") || dc === "accelerometer") return true;
+  if (domain === "device_tracker" && (id.includes("ble") || id.includes("tag"))) return true;
+  return false;
+}
+
+export function isEnvironmentEntity(entity: HAEntity): boolean {
+  if (getDomain(entity.entity_id) !== "sensor") return false;
+  const dc = (entity.attributes.device_class as string) || "";
+  return ENV_DEVICE_CLASSES.has(dc);
+}
+
+function isBleEntity(entity: HAEntity): boolean {
+  return isBleTagEntity(entity);
 }
 
 function classifyHomeSensor(entity: HAEntity): HomeSensorGroup | null {
-  if (isSystemEntity(entity)) return null;
-
   const domain = getDomain(entity.entity_id);
-  const dc = (entity.attributes.device_class as string) || "";
 
   if (domain === "lock") return "locks";
+  if (isBleTagEntity(entity)) return "ble";
+  if (isPerimeterEntity(entity)) return "perimeter";
+  if (isMotionEntity(entity)) return "motion";
+  if (isEnvironmentEntity(entity)) return "environment";
 
-  if (isBleEntity(entity)) return "ble";
+  if (isSystemEntity(entity)) return null;
 
-  if (domain === "binary_sensor") {
-    if (["door", "window", "garage_door", "opening"].includes(dc)) return "perimeter";
-    if (["motion", "occupancy", "vibration", "tamper", "sound", "smoke", "gas"].includes(dc)) return "motion";
-    if (isSecurityRelevant(entity)) return "motion";
-  }
+  if (domain === "binary_sensor" && isSecurityRelevant(entity)) return "motion";
 
-  if (domain === "sensor") {
-    if (["temperature", "humidity", "illuminance", "pressure", "carbon_dioxide"].includes(dc)) {
-      return "environment";
-    }
-    if (isBleEntity(entity)) return "ble";
-  }
-
-  if (domain === "cover") return "perimeter";
+  if (domain === "sensor" && isBleEntity(entity)) return "ble";
 
   return null;
 }

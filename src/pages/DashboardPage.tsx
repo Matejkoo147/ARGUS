@@ -4,8 +4,10 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { ConfRing, SensorRow } from "../components/CyberWidgets";
 import { useHA } from "../context/HAContext";
 import { resolveDashboardCamera } from "../lib/cameras";
+import { isLiveAlertCandidate } from "../lib/alerts";
 import { formatEntityState, isSecurityRelevant, sensorStrength } from "../lib/entities";
-import { ARM_ACTIONS, type ArmAction, groupHomeSensors } from "../lib/homeSensors";
+import { ARM_ACTIONS, type ArmAction, groupHomeSensors, isBleTagEntity, isMotionEntity, isPerimeterEntity } from "../lib/homeSensors";
+import { resolveQuickControls } from "../lib/preferences";
 import { getDomain, getFriendlyName, isOnState } from "../types";
 
 function logTimestamp(): string {
@@ -40,9 +42,12 @@ export function DashboardPage() {
 
   const legacySensorRows = useMemo(() => {
     return entities
-      .filter(isSecurityRelevant)
-      .filter((e) => getDomain(e.entity_id) === "binary_sensor" || getDomain(e.entity_id) === "sensor")
-      .slice(0, 10)
+      .filter((e) => isMotionEntity(e) || isPerimeterEntity(e) || isBleTagEntity(e) || isSecurityRelevant(e))
+      .filter((e) => {
+        const d = getDomain(e.entity_id);
+        return d === "binary_sensor" || d === "sensor" || d === "device_tracker" || d === "lock";
+      })
+      .slice(0, 12)
       .map((e) => ({
         id: e.entity_id,
         name: getFriendlyName(e),
@@ -54,33 +59,47 @@ export function DashboardPage() {
 
   const activeAlerts = useMemo(() => {
     return entities
-      .filter(isSecurityRelevant)
-      .filter((e) => isOnState(e.state) || e.state === "triggered" || e.state === "unlocked" || e.state === "moving")
+      .filter(isLiveAlertCandidate)
+      .filter((e) => isOnState(e.state) || e.state === "triggered" || e.state === "unlocked" || e.state === "moving" || e.state === "not_home")
       .map((e) => ({
         name: getFriendlyName(e),
         detail: formatEntityState(e),
       }));
   }, [entities]);
 
-  const quickControls = useMemo(() => {
-    return entities.filter((e) => {
-      const d = getDomain(e.entity_id);
-      if (d === "light" || d === "switch") return true;
-      if (d === "lock") return true;
-      if (d === "siren" || e.entity_id.includes("siren")) return true;
-      return false;
-    }).slice(0, 6);
-  }, [entities]);
-
-  const runArm = async (mode: ArmAction) => {
-    if (!alarm) return;
-    await callService("alarm_control_panel", mode, { code: "" }, { entity_id: alarm.entity_id });
-    setPendingArm(null);
-  };
+  const quickControls = useMemo(
+    () => resolveQuickControls(entities, preferences.quickControls),
+    [entities, preferences.quickControls],
+  );
 
   const haUrl = config?.url ?? "";
   const token = config?.token ?? "";
   const ts = logTimestamp();
+
+  const runArm = async (mode: ArmAction) => {
+    if (!alarm) return;
+    await callService(
+      "alarm_control_panel",
+      mode,
+      { code: preferences.alarmCode ?? "" },
+      { entity_id: alarm.entity_id },
+    );
+    setPendingArm(null);
+  };
+
+  const idlePerimeterLine = useMemo(() => {
+    const parts: string[] = [];
+    if (summary.motionCount > 0) parts.push(`${summary.motionCount} motion`);
+    if (summary.doorOpen > 0) parts.push(`${summary.doorOpen} open`);
+    else if (summary.motionCount === 0 && summary.bleTagCount === 0 && summary.cameraCount > 0) {
+      parts.push(`${summary.cameraCount} camera${summary.cameraCount > 1 ? "s" : ""}`);
+    }
+    if (summary.bleTagCount > 0) parts.push(`${summary.bleTagCount} BLE`);
+    if (summary.cameraCount > 0 && summary.motionCount > 0) {
+      parts.push(`${summary.cameraCount} cam`);
+    }
+    return parts.length ? parts.join(" · ") : "no sensors linked";
+  }, [summary]);
 
   return (
     <>
@@ -141,7 +160,9 @@ export function DashboardPage() {
               <div className="empty-state">
                 <p>No security sensors yet.</p>
                 <p style={{ marginTop: 8, fontSize: "0.72rem" }}>
-                  Add door contacts, PIR motion, BLE accelerometer tags, or indoor temperature sensors in Home Assistant — they appear here grouped by type.
+                  {summary.motionCount > 0 || summary.bleTagCount > 0
+                    ? `HA reports ${summary.motionCount} motion and ${summary.bleTagCount} BLE entities — check entity names or reload if they should appear here.`
+                    : "Add door contacts, PIR motion, BLE accelerometer tags, or indoor temperature sensors in Home Assistant — they appear here grouped by type."}
                 </p>
               </div>
             ) : sensorGroups.length > 0 ? (
@@ -255,9 +276,11 @@ export function DashboardPage() {
 
       <div className="card" style={{ marginTop: "1rem" }}>
         <div className="card-header"><i className="bi bi-exclamation-triangle" /> Live Alerts</div>
-        <div className="card-body log-terminal">
+        <div className={`card-body log-terminal${activeAlerts.length === 0 ? " log-terminal--compact" : ""}`}>
           {activeAlerts.length === 0 ? (
-            <div className="log-info">[{ts}] // perimeter clear — no active motion, doors, or breaches</div>
+            <div className="log-info">
+              [{ts}] // perimeter clear — {idlePerimeterLine} — all quiet
+            </div>
           ) : (
             activeAlerts.map((a, i) => (
               <div key={i} className="log-warn">
