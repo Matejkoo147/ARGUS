@@ -1,6 +1,6 @@
 {
   "name": "argus-home-security",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "description": "ARGUS — cyberpunk Home Assistant frontend for smart home security thesis",
   "type": "module",
