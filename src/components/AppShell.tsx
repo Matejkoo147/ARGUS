@@ -139,36 +139,38 @@ export function AppShell() {
           </div>
 
           <div className="nav-hud-center">
-            <div className="nav-hud-status">
-              <span className={`status-dot ${dotClass}`} />
-              <span className={breach ? "glow-red" : armed ? "glow-red" : status === "connected" ? "glow-green" : ""}>
-                {statusLabel}
-              </span>
+            <div className="nav-hud-primary">
+              <div className="nav-hud-status">
+                <span className={`status-dot ${dotClass}`} />
+                <span className={breach ? "glow-red" : armed ? "glow-red" : status === "connected" ? "glow-green" : ""}>
+                  {statusLabel}
+                </span>
+              </div>
+
+              <span className="nav-hud-sep nav-hud-sep--status" aria-hidden />
+
+              {breach ? (
+                <span className="badge-mode badge-breach">BREACH</span>
+              ) : armed ? (
+                <span className="badge-mode badge-armed">SECURE</span>
+              ) : status === "connected" ? (
+                <span className="badge-mode badge-safe">DISARMED</span>
+              ) : null}
+
+              {perimeterBrief && (
+                <>
+                  <span className="nav-hud-sep nav-hud-sep--brief" aria-hidden />
+                  <button
+                    type="button"
+                    className={`nav-hud-brief${perimeterBrief.cls ? ` ${perimeterBrief.cls}` : ""}`}
+                    title="Perimeter status — tap to open"
+                    onClick={() => navigate(perimeterBrief.route)}
+                  >
+                    {perimeterBrief.text}
+                  </button>
+                </>
+              )}
             </div>
-
-            <span className="nav-hud-sep" aria-hidden />
-
-            {breach ? (
-              <span className="badge-mode badge-breach">BREACH</span>
-            ) : armed ? (
-              <span className="badge-mode badge-armed">SECURE</span>
-            ) : status === "connected" ? (
-              <span className="badge-mode badge-safe">DISARMED</span>
-            ) : null}
-
-            {perimeterBrief && (
-              <>
-                <span className="nav-hud-sep nav-hud-sep--brief" aria-hidden />
-                <button
-                  type="button"
-                  className={`nav-hud-brief${perimeterBrief.cls ? ` ${perimeterBrief.cls}` : ""}`}
-                  title="Perimeter status — tap to open"
-                  onClick={() => navigate(perimeterBrief.route)}
-                >
-                  {perimeterBrief.text}
-                </button>
-              </>
-            )}
 
             <span className="nav-hud-sep nav-hud-sep--metrics" aria-hidden />
 
@@ -212,6 +214,12 @@ export function AppShell() {
 
             <div className="nav-metrics nav-metrics--mobile">
               <NavMetricBtn
+                title="Cameras"
+                icon="bi-camera-video"
+                value={summary.cameraCount}
+                onClick={() => navigate("/cameras")}
+              />
+              <NavMetricBtn
                 title="Motion sensors"
                 icon="bi-person-walking"
                 value={summary.motionActive}
@@ -225,17 +233,12 @@ export function AppShell() {
                 alert={summary.doorOpen > 0}
                 onClick={() => navigate("/")}
               />
-              <NavMetricBtn
-                title="Cameras"
-                icon="bi-camera-video"
-                value={summary.cameraCount}
-                onClick={() => navigate("/cameras")}
-              />
               {summary.bleTagCount > 0 && (
                 <NavMetricBtn
                   title="BLE tags"
                   icon="bi-bluetooth"
                   value={summary.bleTagCount}
+                  className="nav-metric--ble"
                   onClick={() => navigate("/sensors")}
                 />
               )}
