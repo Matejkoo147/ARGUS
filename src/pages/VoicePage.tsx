@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { useHA } from "../context/HAContext";
 import { useArgusMic } from "../hooks/useArgusMic";
 import { buildArgusSystemPrompt, parseVoiceArmAction, runArgusLocalCommand, VOICE_ARM_REPLIES } from "../lib/argusVoice";
 import { ARM_ACTIONS, type ArmAction } from "../lib/homeSensors";
 import { ARGUS_VOICE_COMMANDS, VOICE_COMMAND_CATEGORIES } from "../lib/voiceCommands";
-import { askOllama, loadOllamaConfig, type OllamaConfig } from "../lib/ollama";
+import { askOllama, loadOllamaConfig, resolveOllamaConfig, type OllamaConfig } from "../lib/ollama";
 import { getDomain } from "../types";
 
 const VOICE_MUTE_KEY = "argus_voice_muted";
@@ -66,23 +65,24 @@ function VoiceCommandsList({ onPick }: { onPick: (phrase: string) => void }) {
 
 export function VoicePage() {
   const { entities, summary, callService, entityLocations, preferences } = useHA();
-  const navigate = useNavigate();
   const [pendingArm, setPendingArm] = useState<ArmAction | null>(null);
   const commandsRef = useRef<HTMLDetailsElement>(null);
   const [ollama, setOllama] = useState<OllamaConfig | null>(() => loadOllamaConfig());
+  const effectiveOllama = ollama ?? resolveOllamaConfig();
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [busyLabel, setBusyLabel] = useState("");
   const [muted, setMuted] = useState(() => localStorage.getItem(VOICE_MUTE_KEY) === "1");
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
-    const o = loadOllamaConfig();
+    const o = resolveOllamaConfig();
+    const saved = loadOllamaConfig();
     return [
       {
         role: "argus",
-        text: o
+        text: saved
           ? `ARGUS online — Ollama model ${o.model}. Tap the mic, say “ARGUS, status”, review the text, then Send.`
-          : "ARGUS online. Tap mic and say “ARGUS, status” — or configure Ollama in Settings for AI replies.",
-        meta: o ? `Ready · ${o.url}` : undefined,
+          : `ARGUS online — using default Ollama (${o.model}). Tap TEST in conversation to verify AI, or save your settings.`,
+        meta: saved ? `Ready · ${o.url}` : `Default · ${o.url}`,
       },
     ];
   });
@@ -162,28 +162,26 @@ export function VoicePage() {
         reply = local;
         source = "local";
         meta = formatMeta("local");
-      } else if (ollama) {
-        setBusyLabel(`Running ${ollama.model}…`);
+      } else {
+        const cfg = resolveOllamaConfig();
+        setBusyLabel(`Running ${cfg.model}…`);
         try {
-          const context = buildArgusSystemPrompt(ollama.model, {
+          const context = buildArgusSystemPrompt(cfg.model, {
             entities,
             summary,
             entityLocations,
           });
 
-          const result = await askOllama(ollama, text, context);
+          const result = await askOllama(cfg, text, context);
           reply = result.text || "(empty response from model)";
           source = "ollama";
           meta = formatMeta("ollama", result.model, result.latencyMs, result.tokens, result.loadMs);
         } catch (e) {
-          reply = `Ollama error: ${e instanceof Error ? e.message : "failed"}. Check Settings → Ollama URL.`;
+          reply = `Ollama error: ${e instanceof Error ? e.message : "failed"}. Check Settings → Ollama URL and tap SAVE & TEST.`;
           source = "error";
           meta = formatMeta("error");
         }
         setBusyLabel("");
-      } else {
-        reply = `Configure Ollama in Settings for open questions. Commands: "status", "arm away", "disarm", "any motion?"`;
-        meta = formatMeta("fallback");
       }
 
       setMessages((prev) => [...prev, { role: "argus", text: reply, meta, source }]);
@@ -191,7 +189,7 @@ export function VoicePage() {
       setBusyLabel("");
       setBusy(false);
     },
-    [ollama, runLocalCommand, entities, summary, entityLocations, speak],
+    [runLocalCommand, entities, summary, entityLocations, speak],
   );
 
   const sendMessage = async (text: string) => {
@@ -263,15 +261,57 @@ export function VoicePage() {
     }
   };
 
-  const runModelTest = () => {
-    if (!ollama) {
-      navigate("/settings");
-      return;
-    }
+  const runModelTest = async () => {
+    if (busy) return;
+    if (listening) stopMic();
+
     const n = Math.floor(Math.random() * 10000);
-    sendMessage(
-      `State which AI model you are using and say the number ${n}. Reply in one short sentence with your exact model name and the number ${n}.`,
-    );
+    const cfg = resolveOllamaConfig();
+    const userText = `Model test · verification ${n}`;
+
+    setMessages((prev) => [...prev, { role: "user", text: userText }]);
+    setBusy(true);
+    setBusyLabel(`Testing ${cfg.model}…`);
+
+    const aiPrompt =
+      `Reply with exactly one line in this format: AI_MODEL: <your exact model name> · NUMBER: ${n}. The number must be ${n}. No other text.`;
+
+    try {
+      const context = buildArgusSystemPrompt(cfg.model, {
+        entities,
+        summary,
+        entityLocations,
+      });
+      const result = await askOllama(cfg, aiPrompt, context);
+      const reply = result.text?.trim() || `AI_MODEL: ${result.model} · NUMBER: ${n}`;
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "argus",
+          text: reply,
+          meta: formatMeta("ollama", result.model, result.latencyMs, result.tokens, result.loadMs),
+          source: "ollama",
+        },
+      ]);
+      speak(reply);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Request failed";
+      const hint = ollama
+        ? ""
+        : " Tip: open Settings → Ollama and tap SAVE & TEST if defaults are wrong.";
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "argus",
+          text: `Model test failed: ${msg}.${hint}`,
+          meta: formatMeta("error"),
+          source: "error",
+        },
+      ]);
+    } finally {
+      setBusyLabel("");
+      setBusy(false);
+    }
   };
 
   const toggleMute = () => {
@@ -301,7 +341,7 @@ export function VoicePage() {
       <div className="page-head">
         <h2><span className="accent">//</span> VOICE</h2>
         <span className="sub">
-          {ollama ? `Ollama · ${ollama.model}` : "configure Ollama in Settings"}
+          {ollama ? `Ollama · ${effectiveOllama.model}` : `Ollama · ${effectiveOllama.model} (default)`}
         </span>
       </div>
 
@@ -403,11 +443,7 @@ export function VoicePage() {
                 className="btn-cyber-mini"
                 onClick={runModelTest}
                 disabled={busy}
-                title={
-                  ollama
-                    ? "Model check — Ollama replies with MODEL_CHECK and a random number"
-                    : "Configure Ollama in Settings first"
-                }
+                title="Model test — Ollama replies with AI_MODEL and a random number in the conversation"
               >
                 <i className="bi bi-cpu" /> TEST
               </button>

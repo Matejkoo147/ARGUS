@@ -43,6 +43,11 @@ export function loadOllamaConfig(): OllamaConfig | null {
   }
 }
 
+/** Saved config, or built-in defaults (proxy URL + qwen2.5:3b). */
+export function resolveOllamaConfig(): OllamaConfig {
+  return loadOllamaConfig() ?? getDefaultOllama();
+}
+
 export function saveOllamaConfig(cfg: OllamaConfig) {
   localStorage.setItem(OLLAMA_STORAGE_KEY, JSON.stringify(cfg));
 }
