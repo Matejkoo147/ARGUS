@@ -1,68 +1,51 @@
 # ARGUS — Master's thesis setup log
 
-Living documentation for the hardware/software deployment of **ARGUS** (cyberpunk Home Assistant security UI).  
-This folder is the source for a later **PDF** (with photos, diagrams, and step-by-step procedures).
+Living documentation for hardware/software deployment of **ARGUS**. Source for a later **PDF** with photos.
 
-## Target architecture (decision)
+## Target architecture (locked)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Raspberry Pi 5 (16 GB) + active cooler                     │
-│  + Raspberry Pi Touch Display 2 (7″) — LANDSCAPE 1280×720   │
+│  Raspberry Pi 5 (16 GB) + Active Cooler                     │
+│  + Touch Display 2 (7″) — OS landscape ≈ 1280×720           │
 │                                                             │
-│   Home Assistant  ←→  ARGUS (Docker / nginx SPA)             │
-│        │                    │                               │
-│        │                    └── kiosk Chromium fullscreen   │
-│        │                        on the 7″ touch panel       │
-└────────┼────────────────────┼───────────────────────────────┘
-         │ LAN / VPN          │ HTTPS proxy /api/ollama
-         ▼                    ▼
-   Sensors / cameras     mato-server (home server)
-   (ReoLink, BLE, …)         └── Ollama only (AI models)
+│   Home Assistant (Docker)  ←→  ARGUS (Docker / nginx)       │
+│                                    └── Chromium kiosk       │
+└───────────────┬────────────────────┬────────────────────────┘
+                │ Ethernet LAN       │ /api/ollama
+                ▼                    ▼
+         sensors / cameras     mato-server → Ollama only
 ```
 
-| Component | Where it runs | Notes |
-|-----------|---------------|--------|
-| Home Assistant | **Pi 5** | Core of the smart-home / security backend |
-| ARGUS web UI | **Pi 5** | Served locally; shown fullscreen on the 7″ display |
-| Touch kiosk | **Pi 5** | Landscape-only browser (no desktop chrome) |
-| Ollama / Odysseus AI | **mato-server** | Only AI stays on the home server |
-| Dev / git | Windows laptop | Push → pull & rebuild on Pi |
+| Component | Where |
+|-----------|--------|
+| Raspberry Pi OS + Docker | **Pi 5** |
+| Home Assistant + ARGUS + touch kiosk | **Pi 5** |
+| Ollama / Odysseus AI | **mato-server only** |
 
-### Why landscape is mandatory
+### Install method (locked for thesis)
 
-Touch Display 2 panel is **720 × 1280** in native portrait. ARGUS and the thesis demo assume **1280 × 720 landscape** (kiosk). Rotation is configured in the OS / display stack, not only in CSS.
+**microSD flashed on PC with a USB card reader + Ethernet** on first boot.  
+See [`03-install-without-sd-reader.md`](03-install-without-sd-reader.md) (filename kept; content is the official thesis path).
 
-### Install constraint (no keyboard, no SD reader)
+### Physical assembly
 
-- **Now:** flash **USB stick** on Windows with Raspberry Pi Imager; set **Wi‑Fi + SSH + username/password** in OS customisation; boot Pi from USB; control from laptop. **No keyboard and no Ethernet required** (Wi‑Fi-only OK).
-- Network Install (Shift) needs keyboard + Ethernet — skip for now.
-- Later: Ethernet cable and/or USB SSD for a more stable HA edge node.
+Detailed cooler + Touch Display 2 wiring: [`01-bom-and-connections.md`](01-bom-and-connections.md).
 
 ---
 
-## Documents in this folder
+## Documents
 
 | File | Purpose |
 |------|---------|
-| [01-bom-and-connections.md](01-bom-and-connections.md) | Hardware list + physical wiring |
-| [02-architecture-decision.md](02-architecture-decision.md) | HA OS vs Pi OS + Docker (thesis trade-offs) |
-| [03-install-without-sd-reader.md](03-install-without-sd-reader.md) | Network / USB install paths |
-| [04-landscape-touch-display.md](04-landscape-touch-display.md) | Force landscape 1280×720 |
-| [05-argus-and-ollama.md](05-argus-and-ollama.md) | ARGUS on Pi, Ollama on mato-server |
-| [06-photo-checklist.md](06-photo-checklist.md) | Photos to shoot for the PDF |
-| [CHANGELOG-SETUP.md](CHANGELOG-SETUP.md) | Chronological log of what you did |
+| [01-bom-and-connections.md](01-bom-and-connections.md) | BOM, cooler, display, fan behaviour |
+| [02-architecture-decision.md](02-architecture-decision.md) | Option B locked |
+| [03-install-without-sd-reader.md](03-install-without-sd-reader.md) | microSD reader + Ethernet install |
+| [04-landscape-touch-display.md](04-landscape-touch-display.md) | Landscape 1280×720 |
+| [05-argus-and-ollama.md](05-argus-and-ollama.md) | ARGUS on Pi, Ollama on server |
+| [06-photo-checklist.md](06-photo-checklist.md) | Photos for PDF |
+| [CHANGELOG-SETUP.md](CHANGELOG-SETUP.md) | Chronological log |
 
-Update these as you build. Do not invent photos — use placeholders until you shoot them.
+## Previous setup (migration chapter)
 
----
-
-## Previous setup (before this migration)
-
-Documented for the thesis “evolution” chapter:
-
-- **mato-server** (Ubuntu + WireGuard): ARGUS Docker `:9080` / HTTPS `:9443`, HA in Docker, Ollama on same host.
-- Dev on Windows; deploy via `git pull && argus-update build`.
-- See repo root: `DEPLOY.md`, `HA_SETUP.md`.
-
-New goal: **Pi 5 = HA + ARGUS + touch kiosk**; **mato-server = Ollama only** (plus optional VPN/backup).
+mato-server: ARGUS + HA Docker; see root `DEPLOY.md`, `HA_SETUP.md`.
