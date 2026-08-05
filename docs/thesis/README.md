@@ -35,9 +35,9 @@ Touch Display 2 panel is **720 × 1280** in native portrait. ARGUS and the thesi
 
 ### Install constraint (no keyboard, no SD reader)
 
-- **Now:** flash **USB stick** on Windows with Raspberry Pi Imager; enable **SSH + username/password** in OS customisation; boot Pi from USB + Ethernet; control from laptop. **No keyboard required.**
-- Network Install (Shift) needs a keyboard — skip until you have one.
-- Later: larger USB SSD / SD reader for durability.
+- **Now:** flash **USB stick** on Windows with Raspberry Pi Imager; set **Wi‑Fi + SSH + username/password** in OS customisation; boot Pi from USB; control from laptop. **No keyboard and no Ethernet required** (Wi‑Fi-only OK).
+- Network Install (Shift) needs keyboard + Ethernet — skip for now.
+- Later: Ethernet cable and/or USB SSD for a more stable HA edge node.
 
 ---
 

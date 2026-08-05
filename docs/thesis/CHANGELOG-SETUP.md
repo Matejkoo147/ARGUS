@@ -5,7 +5,7 @@ Append every real step. Short entries are fine.
 ## 2026-08-05 — Planning
 
 - Locked **Option B:** Raspberry Pi OS + Docker (HA + ARGUS + landscape kiosk); Ollama on mato-server.
-- **No keyboard:** Network Install deferred. **Do now:** flash USB on Windows Imager with SSH pre-enabled; boot Pi from USB + Ethernet; SSH from laptop. Touch display only for viewing.
+- **No keyboard / no Ethernet:** flash USB on Windows Imager with **Wi‑Fi + SSH** pre-enabled; boot Pi from USB; SSH from laptop on the same Wi‑Fi.
 - Later: USB SSD upgrade; optional keyboard for local use.
 
 ## Next actions

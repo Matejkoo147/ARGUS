@@ -25,7 +25,8 @@ Buy a keyboard later only if you want local typing; it is **not** required to ge
 | USB stick (or USB SSD) | Yes — 16 GB+ recommended (32 GB+ better for HA) |
 | Pi 5 + 27 W PSU + cooler | Yes |
 | Touch Display 2 connected | Yes (optional for install, useful to see boot) |
-| Ethernet cable Pi → router | **Yes** (most reliable; same LAN as laptop) |
+| Ethernet cable Pi → router | Nice to have | **Not required** if Wi‑Fi is set in Imager |
+| Wi‑Fi (2.4 / 5 GHz) | Yes if no Ethernet | Enter SSID + password in Imager customisation |
 | Keyboard | **No** |
 | microSD | Leave **out** so the Pi boots from USB |
 
@@ -42,8 +43,11 @@ Buy a keyboard later only if you want local typing; it is **not** required to ge
    **General**
    - Hostname: e.g. `argus-pi`
    - Username + password: pick and **write them down** (needed for SSH)
-   - Wireless LAN: skip if using Ethernet; fill only if you have no cable
-   - Locale: Europe/Bratislava (or your zone), keyboard layout SK/US as you prefer
+   - **Wireless LAN (required if you have no Ethernet):**
+     - SSID = your Wi‑Fi name (exact spelling / case)
+     - Password = Wi‑Fi password
+     - Wireless LAN country = `SK` (or your country code)
+   - Locale: Europe/Bratislava (or your zone), keyboard layout as you prefer
 
    **Services / Remote access**
    - **Enable SSH**
@@ -52,28 +56,46 @@ Buy a keyboard later only if you want local typing; it is **not** required to ge
 5. Apply → Write → wait until verify finishes.
 6. Eject USB safely.
 
-**Thesis:** screenshot Imager customisation (`P-IMAGER`).
+**Thesis:** screenshot Imager customisation including Wi‑Fi fields (`P-IMAGER`).
+
+### Wi‑Fi-only notes
+
+- Imager **must** have correct SSID + password + country, or the Pi will never join the network and SSH will fail.
+- Prefer **2.4 GHz** if the Pi struggles with 5 GHz (some APs / guest networks block new devices).
+- Laptop must be on the **same Wi‑Fi** (not guest/isolated / VPN-only).
+- First boot can take **3–5 minutes** before Wi‑Fi + SSH are ready — wait, then retry SSH.
+- Ethernet later is still better for HA stability; Wi‑Fi is fine to get started.
 
 ### B) Boot the Pi (still no keyboard)
 
 1. **Remove microSD** from the Pi (if inserted) so it prefers USB boot.
 2. Plug USB stick into a **blue USB 3** port on the Pi.
-3. Ethernet → router. Display ribbon OK. Cooler mounted.
+3. Display ribbon OK. Cooler mounted. No Ethernet needed if Wi‑Fi was set in Imager.
 4. Plug **27 W** USB-C power **last**.
-5. Wait **2–3 minutes** on first boot (resizing filesystem). Touch screen may show desktop or rainbow/boot — either is fine.
-6. On your laptop (same Wi‑Fi/LAN as the Pi):
+5. Wait **3–5 minutes** on first boot (resize + Wi‑Fi associate).
+6. On your laptop (same Wi‑Fi as the Pi):
 
 ```powershell
 ssh YOUR_USERNAME@argus-pi.local
 ```
 
-If `.local` fails, find the IP in the router DHCP list, then:
+If `.local` fails, open the router’s device list and find `argus-pi`, then:
 
 ```powershell
 ssh YOUR_USERNAME@192.168.x.x
 ```
 
 7. First login: `sudo apt update && sudo apt full-upgrade -y`
+
+### If SSH never connects (Wi‑Fi)
+
+| Check | What to do |
+|-------|------------|
+| Wrong SSID/password | Re-flash USB with corrected Imager Wi‑Fi settings |
+| Guest / client isolation | Use main home Wi‑Fi, not guest |
+| Laptop on different network | Same SSID as Pi |
+| Still booting | Wait longer; watch display for desktop |
+| `.local` broken | Use IP from router admin page |
 
 ### If USB does not boot
 
