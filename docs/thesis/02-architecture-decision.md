@@ -67,8 +67,7 @@ If your supervisor **requires** the words “Home Assistant OS”, we can still 
 
 | Decision | Value | Date |
 |----------|--------|------|
-| Chosen option | **B (pending your confirm)** | 2026-08-05 |
-| Storage boot | USB SSD preferred (no SD reader) | |
+| Chosen option | **B — Raspberry Pi OS + Docker** | 2026-08-05 |
+| First install | **Network Install** onto microSD (no PC reader) | 2026-08-05 |
+| Later upgrade | USB SSD / reader when purchased | |
 | AI host | mato-server Ollama | |
-
-Update this table when you confirm A or B.

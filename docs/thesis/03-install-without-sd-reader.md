@@ -1,59 +1,92 @@
 # Install without an SD card reader
 
-You have a microSD but **no reader**. Use one of these paths (document which one you used).
-
-## Path 1 — Flash a USB SSD / USB stick from the PC (recommended)
-
-Works for **Raspberry Pi OS** and can work for **HAOS** images via Raspberry Pi Imager.
-
-### Steps
-
-1. On Windows: install [Raspberry Pi Imager](https://www.raspberrypi.com/software/).
-2. Plug USB SSD or USB 3 stick into the PC.
-3. Imager → **Raspberry Pi 5** → choose OS:
-   - **Option B stack:** Raspberry Pi OS (64-bit) — Lite if you want minimal; Desktop if you want easier kiosk debugging.
-   - **Option A stack:** Other specific-purpose OS → Home Assistant → HAOS for Pi 5.
-4. Choose the USB drive as storage → Write.
-5. On Pi 5: connect USB SSD to a **blue USB 3** port, Ethernet, display, cooler, then 27 W power.
-6. If USB boot fails: one-time bootloader update may be required (needs *any* bootable SD once — borrow a reader or buy a €5 adapter). Imager → Misc utility images → Bootloader → USB Boot.
-
-**Thesis note:** Photograph Imager settings screen and the USB SSD plugged into the Pi.
-
-## Path 2 — Buy / borrow a USB microSD reader
-
-Official HA docs assume this. Fastest if you want classic HAOS-on-SD.
-
-1. Flash microSD with Imager (HAOS or Pi OS).
-2. Insert into Pi → Ethernet → power.
-
-## Path 3 — “Network install” (Raspberry Pi Imager network install)
-
-Raspberry Pi **EEPROM network installer** can load Imager over Ethernet (hold Shift at power-on on supported firmware). Useful when the board can boot enough to fetch an OS **without** pre-flashed media — but:
-
-- Needs working Ethernet + compatible bootloader.
-- You still choose and write an OS image during the flow.
-- Document exact Imager version and bootloader version if you use this.
-
-## Path 4 — rpiboot mass-storage (NVMe HAT, advanced)
-
-If you later add an M.2 NVMe HAT: hold Pi 5 power button, USB-C to PC, `rpiboot` mass-storage gadget, flash NVMe from Imager. No SD reader. Overkill unless you already have NVMe.
+You have a **microSD** but **no USB reader / USB SSD yet** (buying later).  
+**Chosen now: Path 3 — Network Install** → write Raspberry Pi OS onto the microSD **from the Pi itself**.
 
 ---
 
-## First-boot checklist (any path)
+## Path 3 — Network Install (chosen for first boot)
+
+The Pi 5 bootloader can download **Raspberry Pi Imager into RAM** over **wired Ethernet**. You then flash the OS onto the microSD that is already in the Pi. No PC card reader required.
+
+### What you need on the desk
+
+| Item | Required? | Notes |
+|------|-----------|--------|
+| Pi 5 16 GB + cooler | Yes | |
+| Touch Display 2 (or any HDMI/DSI screen) | Yes | See landscape doc after OS is up |
+| USB keyboard | Yes | For holding **Shift** and using Imager |
+| Ethernet cable → router | Yes | **Wi‑Fi will not work** for Network Install |
+| Blank / unused microSD | Yes | Inserted in the Pi (not pre-flashed) |
+| Official 27 W USB-C PSU | Yes | |
+| USB SSD / SD reader | No (later) | Optional upgrade after first install |
+
+### Step-by-step
+
+1. **Assemble** cooler, display ribbon (DSI), keyboard, Ethernet. Insert microSD. Do **not** power yet.
+2. Power on while holding the **left Shift** key on the USB keyboard.
+3. Screen should show the Network Installer (often red/white). It downloads Imager over the internet — wait.
+4. If prompted, press **Space** / follow on-screen confirm.
+5. In Imager on the Pi:
+   - **Raspberry Pi 5**
+   - **OS:** Raspberry Pi OS (64-bit) — **Desktop** recommended first (easier landscape + kiosk debugging). Lite later if you want a leaner thesis build.
+   - **Storage:** the microSD card
+6. Write + verify (can take several minutes — leave Ethernet connected).
+7. Pi reboots into Raspberry Pi OS. Complete the first-boot wizard (locale, user, password). **Enable SSH** in the wizard or later via `raspi-config`.
+8. Photograph: installer screen, OS choice, first desktop (thesis `P-IMAGER`, `P-BOOT`).
+
+### If Shift does nothing / no installer
+
+| Cause | Fix |
+|-------|-----|
+| Card already has a bootable OS | Hold Shift earlier, or temporarily remove card until installer UI, then insert — or wipe card later when you have a reader |
+| No Ethernet / no DHCP | Use cable to router; check link lights |
+| Old bootloader | Rare on new Pi 5; may need bootloader update via a flashed utility image (then you need a reader once) |
+| Keyboard not ready | Use a wired USB keyboard; try again |
+
+### After OS is installed (same day)
+
+1. `sudo apt update && sudo apt full-upgrade -y`
+2. Note hostname / IP (`hostname -I`) in `CHANGELOG-SETUP.md`
+3. Landscape rotation → `04-landscape-touch-display.md`
+4. Docker + HA + ARGUS → `05-argus-and-ollama.md`
+
+---
+
+## Path 1 — USB SSD from PC (buy later)
+
+When you have a USB SSD/stick + optional reader:
+
+1. Flash Raspberry Pi OS (or clone the working SD) onto USB SSD with Imager on the PC.
+2. Boot from USB 3 (blue port). Faster + longer life than microSD for HA database writes.
+3. Thesis: document migration SD → SSD as a reliability improvement.
+
+## Path 2 — USB microSD reader (buy later)
+
+Classic: flash on PC. Useful for recovery images / bootloader utilities.
+
+## Path 4 — rpiboot + NVMe (optional later)
+
+Only if you add an M.2 HAT.
+
+---
+
+## First-boot checklist
 
 | Step | Check | Notes |
 |------|--------|------|
 | 1 | Ethernet link LEDs | Same LAN as laptop |
-| 2 | Find Pi IP | Router DHCP list, or `ping raspberrypi.local` / `homeassistant.local` |
-| 3 | SSH (Pi OS) or HA onboarding (`:8123`) | Screenshot for thesis |
-| 4 | Display shows something | Then apply landscape (see `04-landscape-touch-display.md`) |
-| 5 | Update OS / HA | Record versions in `CHANGELOG-SETUP.md` |
+| 2 | Network Install completed | Pi OS on microSD |
+| 3 | Find Pi IP | Router DHCP or `ping <hostname>.local` |
+| 4 | SSH from laptop | `ssh user@pi-ip` |
+| 5 | Display works | Then landscape |
+| 6 | OS version recorded | `CHANGELOG-SETUP.md` |
 
-## Chosen path (fill in)
+## Chosen path (locked)
 
-- **Path used:** _______________________
-- **Date:** _______________________
-- **Image / version:** _______________________
-- **Boot medium:** USB SSD / microSD / NVMe / other
-- **Problems & fixes:** _(log below)_
+- **Path used:** **3 — Network Install**
+- **OS target:** Raspberry Pi OS 64-bit (Desktop first)
+- **Boot medium (now):** microSD in Pi
+- **Boot medium (later):** USB SSD when purchased
+- **Date started:** 2026-08-05
+- **Problems & fixes:** _(append below as you go)_

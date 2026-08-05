@@ -33,13 +33,11 @@ This folder is the source for a later **PDF** (with photos, diagrams, and step-b
 
 Touch Display 2 panel is **720 × 1280** in native portrait. ARGUS and the thesis demo assume **1280 × 720 landscape** (kiosk). Rotation is configured in the OS / display stack, not only in CSS.
 
-### Install constraint (no SD card reader)
+### Install constraint (no SD card reader yet)
 
-You have a microSD but **no reader**. Preferred install order:
+You have a microSD but **no reader / USB SSD yet** (buying later).
 
-1. **USB SSD / USB stick** — flash HA / Pi OS from the PC with Raspberry Pi Imager (no SD reader needed).
-2. **Cheap USB microSD reader** (~€5) — then official HA OS microSD path.
-3. **Network / USB gadget** — advanced; document if used (rpiboot / Imager network install).
+**Locked path:** Raspberry Pi **Network Install** (hold Shift) → Imager in RAM → write **Raspberry Pi OS** onto the microSD in the Pi. Needs Ethernet + USB keyboard + display. SSD migration comes later for HA write durability.
 
 ---
 
