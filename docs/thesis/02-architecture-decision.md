@@ -68,6 +68,7 @@ If your supervisor **requires** the words “Home Assistant OS”, we can still 
 | Decision | Value | Date |
 |----------|--------|------|
 | Chosen option | **B — Raspberry Pi OS + Docker** | 2026-08-05 |
-| First install | **Network Install** onto microSD (no PC reader) | 2026-08-05 |
-| Later upgrade | USB SSD / reader when purchased | |
+| First install | **USB stick via PC Imager + SSH** (no keyboard on Pi) | 2026-08-05 |
+| Not used yet | Network Install (needs keyboard) | |
+| Later upgrade | Larger USB SSD / reader when purchased | |
 | AI host | mato-server Ollama | |

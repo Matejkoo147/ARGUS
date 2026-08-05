@@ -1,92 +1,112 @@
-# Install without an SD card reader
+# Install without an SD card reader / keyboard
 
-You have a **microSD** but **no USB reader / USB SSD yet** (buying later).  
-**Chosen now: Path 3 — Network Install** → write Raspberry Pi OS onto the microSD **from the Pi itself**.
+## Locked approach (right now)
 
----
+| Constraint | Solution |
+|------------|----------|
+| No SD card reader | Flash a **USB stick** on the Windows PC |
+| No keyboard on the Pi | Pre-enable **SSH** in Raspberry Pi Imager → control from laptop |
+| Touch display only | Fine for watching boot; setup is done over SSH (touch later for kiosk) |
+| Network Install (Shift) | **Skip for now** — needs a USB keyboard |
 
-## Path 3 — Network Install (chosen for first boot)
+**Chosen path: Path 1 — USB flash from PC + headless SSH**
 
-The Pi 5 bootloader can download **Raspberry Pi Imager into RAM** over **wired Ethernet**. You then flash the OS onto the microSD that is already in the Pi. No PC card reader required.
-
-### What you need on the desk
-
-| Item | Required? | Notes |
-|------|-----------|--------|
-| Pi 5 16 GB + cooler | Yes | |
-| Touch Display 2 (or any HDMI/DSI screen) | Yes | See landscape doc after OS is up |
-| USB keyboard | Yes | For holding **Shift** and using Imager |
-| Ethernet cable → router | Yes | **Wi‑Fi will not work** for Network Install |
-| Blank / unused microSD | Yes | Inserted in the Pi (not pre-flashed) |
-| Official 27 W USB-C PSU | Yes | |
-| USB SSD / SD reader | No (later) | Optional upgrade after first install |
-
-### Step-by-step
-
-1. **Assemble** cooler, display ribbon (DSI), keyboard, Ethernet. Insert microSD. Do **not** power yet.
-2. Power on while holding the **left Shift** key on the USB keyboard.
-3. Screen should show the Network Installer (often red/white). It downloads Imager over the internet — wait.
-4. If prompted, press **Space** / follow on-screen confirm.
-5. In Imager on the Pi:
-   - **Raspberry Pi 5**
-   - **OS:** Raspberry Pi OS (64-bit) — **Desktop** recommended first (easier landscape + kiosk debugging). Lite later if you want a leaner thesis build.
-   - **Storage:** the microSD card
-6. Write + verify (can take several minutes — leave Ethernet connected).
-7. Pi reboots into Raspberry Pi OS. Complete the first-boot wizard (locale, user, password). **Enable SSH** in the wizard or later via `raspi-config`.
-8. Photograph: installer screen, OS choice, first desktop (thesis `P-IMAGER`, `P-BOOT`).
-
-### If Shift does nothing / no installer
-
-| Cause | Fix |
-|-------|-----|
-| Card already has a bootable OS | Hold Shift earlier, or temporarily remove card until installer UI, then insert — or wipe card later when you have a reader |
-| No Ethernet / no DHCP | Use cable to router; check link lights |
-| Old bootloader | Rare on new Pi 5; may need bootloader update via a flashed utility image (then you need a reader once) |
-| Keyboard not ready | Use a wired USB keyboard; try again |
-
-### After OS is installed (same day)
-
-1. `sudo apt update && sudo apt full-upgrade -y`
-2. Note hostname / IP (`hostname -I`) in `CHANGELOG-SETUP.md`
-3. Landscape rotation → `04-landscape-touch-display.md`
-4. Docker + HA + ARGUS → `05-argus-and-ollama.md`
+Buy a keyboard later only if you want local typing; it is **not** required to get ARGUS running.
 
 ---
 
-## Path 1 — USB SSD from PC (buy later)
+## Path 1 — Do this now (USB + laptop, no keyboard)
 
-When you have a USB SSD/stick + optional reader:
+### What you need
 
-1. Flash Raspberry Pi OS (or clone the working SD) onto USB SSD with Imager on the PC.
-2. Boot from USB 3 (blue port). Faster + longer life than microSD for HA database writes.
-3. Thesis: document migration SD → SSD as a reliability improvement.
+| Item | Required? |
+|------|-----------|
+| Windows PC | Yes — flash with Imager |
+| USB stick (or USB SSD) | Yes — 16 GB+ recommended (32 GB+ better for HA) |
+| Pi 5 + 27 W PSU + cooler | Yes |
+| Touch Display 2 connected | Yes (optional for install, useful to see boot) |
+| Ethernet cable Pi → router | **Yes** (most reliable; same LAN as laptop) |
+| Keyboard | **No** |
+| microSD | Leave **out** so the Pi boots from USB |
+
+### A) Flash on Windows
+
+1. Install [Raspberry Pi Imager](https://www.raspberrypi.com/software/).
+2. Plug the USB stick into the PC.
+3. Imager:
+   - **Device:** Raspberry Pi 5  
+   - **OS:** Raspberry Pi OS (64-bit) — **Desktop** (easier first)  
+   - **Storage:** your USB stick (**double-check** — wrong disk = data loss)
+4. When asked to edit **OS customisation** → **Edit settings** (do not skip):
+
+   **General**
+   - Hostname: e.g. `argus-pi`
+   - Username + password: pick and **write them down** (needed for SSH)
+   - Wireless LAN: skip if using Ethernet; fill only if you have no cable
+   - Locale: Europe/Bratislava (or your zone), keyboard layout SK/US as you prefer
+
+   **Services / Remote access**
+   - **Enable SSH**
+   - Use **password** authentication (simplest)
+
+5. Apply → Write → wait until verify finishes.
+6. Eject USB safely.
+
+**Thesis:** screenshot Imager customisation (`P-IMAGER`).
+
+### B) Boot the Pi (still no keyboard)
+
+1. **Remove microSD** from the Pi (if inserted) so it prefers USB boot.
+2. Plug USB stick into a **blue USB 3** port on the Pi.
+3. Ethernet → router. Display ribbon OK. Cooler mounted.
+4. Plug **27 W** USB-C power **last**.
+5. Wait **2–3 minutes** on first boot (resizing filesystem). Touch screen may show desktop or rainbow/boot — either is fine.
+6. On your laptop (same Wi‑Fi/LAN as the Pi):
+
+```powershell
+ssh YOUR_USERNAME@argus-pi.local
+```
+
+If `.local` fails, find the IP in the router DHCP list, then:
+
+```powershell
+ssh YOUR_USERNAME@192.168.x.x
+```
+
+7. First login: `sudo apt update && sudo apt full-upgrade -y`
+
+### If USB does not boot
+
+- Confirm stick is in USB **3** (blue).
+- Try without microSD inserted.
+- Power: must be solid 27 W supply.
+- Rare: bootloader needs “USB boot” preference — that utility image normally needs an SD once; borrow a keyboard+reader later or ask for help if this happens.
+
+---
+
+## Path 3 — Network Install (only if you get a keyboard)
+
+Hold **Shift** at power-on, Imager downloads over Ethernet, write to microSD in the Pi.  
+**Does not work without a keyboard.** Keep as backup / thesis alternative.
+
+---
 
 ## Path 2 — USB microSD reader (buy later)
 
-Classic: flash on PC. Useful for recovery images / bootloader utilities.
-
-## Path 4 — rpiboot + NVMe (optional later)
-
-Only if you add an M.2 HAT.
+Flash the microSD on the PC the same way as Path 1 (same SSH customisation).
 
 ---
 
-## First-boot checklist
+## After first SSH — next thesis steps
 
-| Step | Check | Notes |
-|------|--------|------|
-| 1 | Ethernet link LEDs | Same LAN as laptop |
-| 2 | Network Install completed | Pi OS on microSD |
-| 3 | Find Pi IP | Router DHCP or `ping <hostname>.local` |
-| 4 | SSH from laptop | `ssh user@pi-ip` |
-| 5 | Display works | Then landscape |
-| 6 | OS version recorded | `CHANGELOG-SETUP.md` |
+1. Record hostname, IP, OS version in `CHANGELOG-SETUP.md`
+2. Landscape display → `04-landscape-touch-display.md`
+3. Docker + HA + ARGUS → `05-argus-and-ollama.md`
+4. Later: migrate to a bigger USB SSD when you buy one
 
 ## Chosen path (locked)
 
-- **Path used:** **3 — Network Install**
-- **OS target:** Raspberry Pi OS 64-bit (Desktop first)
-- **Boot medium (now):** microSD in Pi
-- **Boot medium (later):** USB SSD when purchased
-- **Date started:** 2026-08-05
-- **Problems & fixes:** _(append below as you go)_
+- **Path:** **1 — USB from PC + SSH (no keyboard)**
+- **OS:** Raspberry Pi OS 64-bit Desktop
+- **Date:** 2026-08-05
+- **Problems & fixes:** _(append below)_

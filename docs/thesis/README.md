@@ -33,11 +33,11 @@ This folder is the source for a later **PDF** (with photos, diagrams, and step-b
 
 Touch Display 2 panel is **720 × 1280** in native portrait. ARGUS and the thesis demo assume **1280 × 720 landscape** (kiosk). Rotation is configured in the OS / display stack, not only in CSS.
 
-### Install constraint (no SD card reader yet)
+### Install constraint (no keyboard, no SD reader)
 
-You have a microSD but **no reader / USB SSD yet** (buying later).
-
-**Locked path:** Raspberry Pi **Network Install** (hold Shift) → Imager in RAM → write **Raspberry Pi OS** onto the microSD in the Pi. Needs Ethernet + USB keyboard + display. SSD migration comes later for HA write durability.
+- **Now:** flash **USB stick** on Windows with Raspberry Pi Imager; enable **SSH + username/password** in OS customisation; boot Pi from USB + Ethernet; control from laptop. **No keyboard required.**
+- Network Install (Shift) needs a keyboard — skip until you have one.
+- Later: larger USB SSD / SD reader for durability.
 
 ---
 
