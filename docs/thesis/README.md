@@ -44,7 +44,7 @@ Detailed cooler + Touch Display 2 wiring: [`01-bom-and-connections.md`](01-bom-a
 | [04-landscape-touch-display.md](04-landscape-touch-display.md) | Landscape 1280×720 |
 | [05-argus-and-ollama.md](05-argus-and-ollama.md) | ARGUS on Pi, Ollama on server |
 | [06-photo-checklist.md](06-photo-checklist.md) | Photos for PDF |
-| [CHANGELOG-SETUP.md](CHANGELOG-SETUP.md) | Chronological log |
+| [07-session-after-os.md](07-session-after-os.md) | What to do after Pi OS + when to screenshot |
 
 ## Previous setup (migration chapter)
 

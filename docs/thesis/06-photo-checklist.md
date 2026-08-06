@@ -8,6 +8,7 @@ Shoot with good light; keep filenames as below under `docs/thesis/photos/` (git-
 | P-COOLER | Active cooler mounted | `photos/02-cooler.jpg` | [ ] |
 | P-DSI | Ribbon cable seated on DSI | `photos/03-dsi.jpg` | [ ] |
 | P-MOUNT | Landscape stand / case | `photos/04-mount-landscape.jpg` | [ ] |
+| P-COVER | Printed pi_cover with ARGUS logo engraved | `photos/04b-cover-logo.jpg` | [ ] |
 | P-STORAGE | USB SSD or SD inserted | `photos/05-storage.jpg` | [ ] |
 | P-ETH | Ethernet connected | `photos/06-ethernet.jpg` | [ ] |
 | P-PSU | 27 W PSU connected | `photos/07-psu.jpg` | [ ] |
