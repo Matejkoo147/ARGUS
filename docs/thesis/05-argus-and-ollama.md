@@ -47,9 +47,13 @@ Settings → Ollama:
 - Long-lived HA tokens; no separate ARGUS accounts.
 - Document firewall rules on Pi and mato-server.
 
-## Migration from old mato-server HA
+## Migration from old mato-server HA / ARGUS
+
+Full cleanup checklist: [`08-mato-server-ollama-only.md`](08-mato-server-ollama-only.md).
 
 1. Export HA backups from old Docker HA (if any).
-2. Restore on Pi HA.
-3. Point cameras/sensors at new HA.
-4. Leave Ollama running on mato-server; stop old ARGUS on mato-server when Pi is stable (or keep as backup).
+2. Restore on Pi HA (or start fresh).
+3. Point cameras/sensors at new HA on the Pi.
+4. Stop & delete ARGUS + HA on mato-server; **leave Ollama running**.
+5. Open firewall so the Pi can reach `mato-server:11434`.
+6. Point ARGUS on the Pi at that Ollama URL.

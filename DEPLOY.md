@@ -1,8 +1,24 @@
-# Deploy ARGUS on mato-server (Ubuntu + WireGuard)
+# Deploy ARGUS
+
+> **Architecture note (2026-08):** Production edge node is the **Raspberry Pi 5** (HA + ARGUS + touch kiosk).  
+> **mato-server keeps Ollama only.** To remove the old ARGUS/HA stack from mato-server, see [`docs/thesis/08-mato-server-ollama-only.md`](docs/thesis/08-mato-server-ollama-only.md).  
+> The steps below remain as historical / reference deploy docs for Docker on a Linux host (now used on the Pi).
+
+## Architecture (current target)
+
+```
+Windows laptop (dev)          Raspberry Pi 5                    mato-server
+npm run dev / git push   →    ARGUS + HA (Docker)         →    Ollama :11434
+                              Touch Display 2 landscape
+```
+
+---
+
+## Legacy: Deploy ARGUS on mato-server (Ubuntu + WireGuard)
 
 Same workflow as **resell-radar** (`rr-update` on `mato-server` at `~/apps/...`).
 
-## Architecture
+### Previous architecture (superseded)
 
 ```
 Windows laptop (dev)          mato-server (Ubuntu)
@@ -13,10 +29,8 @@ git push                      Home Assistant :8123 (same host, Docker)
 ```
 
 - **Dev:** `npm run dev` on your laptop (`http://localhost:5173`)
-- **Prod:** Docker + nginx serves the SPA on host port **9080** (default; configurable via `.env`)
-- **VPN:** Open `http://10.8.0.1:9080` over WireGuard (adjust IP if yours differs)
-- **Home Assistant on mato-server:** see **[HA_SETUP.md](HA_SETUP.md)** (install HA + connect ARGUS)
-- **HA proxy:** nginx forwards `/api/ha/` to HA on the same server — no CORS setup needed
+- **Prod (old):** Docker + nginx on mato-server port **9080**
+- **Prod (new):** same Docker pattern on the **Pi** — see `docs/thesis/07-session-after-os.md`
 
 ---
 

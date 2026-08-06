@@ -45,7 +45,9 @@ Detailed cooler + Touch Display 2 wiring: [`01-bom-and-connections.md`](01-bom-a
 | [05-argus-and-ollama.md](05-argus-and-ollama.md) | ARGUS on Pi, Ollama on server |
 | [06-photo-checklist.md](06-photo-checklist.md) | Photos for PDF |
 | [07-session-after-os.md](07-session-after-os.md) | What to do after Pi OS + when to screenshot |
+| [08-mato-server-ollama-only.md](08-mato-server-ollama-only.md) | Remove ARGUS/HA from home server; keep Ollama |
+| [CHANGELOG-SETUP.md](CHANGELOG-SETUP.md) | Chronological log |
 
 ## Previous setup (migration chapter)
 
-mato-server: ARGUS + HA Docker; see root `DEPLOY.md`, `HA_SETUP.md`.
+mato-server used to run ARGUS + HA Docker; now **Ollama only**. See `08-mato-server-ollama-only.md`, root `DEPLOY.md`, `HA_SETUP.md`.

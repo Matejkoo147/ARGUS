@@ -13,18 +13,12 @@
 
 ## 2026-08-07 — Hardware live + Pi OS
 
-- Active Cooler installed.
-- Touch Display 2 connected and **on**; touch working.
-- Ethernet via adapter — working.
-- Raspberry Pi OS on microSD; desktop visible.
-- `sudo apt update` / `full-upgrade` done.
-- **Next:** catch-up thesis photos → landscape → Docker → HA → ARGUS.
+- Active Cooler installed; Touch Display 2 on; touch working; Ethernet working.
+- Raspberry Pi OS on microSD; apt upgraded.
+- Documented teardown of ARGUS/HA on mato-server → **Ollama only** (`08-mato-server-ollama-only.md`).
 
 ## Next actions
 
-1. Catch-up screenshots/photos (see session guide below).
-2. Rotate display to **landscape** (persist + verify touch).
-3. Install Docker.
-4. Start Home Assistant container → onboarding screenshots.
-5. Clone ARGUS, configure `.env` for Pi LAN + Ollama on mato-server, `argus-update build`.
-6. Open ARGUS on the Pi browser → Voice TEST → kiosk later.
+1. Catch-up thesis photos → landscape → Docker on Pi.
+2. HA + ARGUS on Pi.
+3. On mato-server: backup HA if needed, then stop/remove ARGUS+HA; keep Ollama reachable from Pi LAN.
