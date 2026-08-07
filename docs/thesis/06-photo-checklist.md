@@ -16,6 +16,8 @@ Shoot with good light; keep filenames as below under `docs/thesis/photos/` (git-
 | P-IMAGER | Raspberry Pi Imager settings | `photos/09-imager.png` | [ ] |
 | P-HA | HA onboarding screen | `photos/10-ha-onboard.png` | [ ] |
 | P-ARGUS | ARGUS Home in landscape kiosk | `photos/11-argus-kiosk.jpg` | [ ] |
+| P-EYE-BOOT | Awaken ceremony — lids opening / iris bloom | `photos/11b-eye-boot.jpg` | [ ] |
+| P-EYE-CLOSE | Standby ceremony — lids closed / slit | `photos/11c-eye-close.jpg` | [ ] |
 | P-VOICE | Voice TEST reply (model + number) | `photos/12-voice-test.png` | [ ] |
 | P-TOPO | Network sketch (whiteboard or draw.io) | `photos/13-topology.png` | [ ] |
 | P-SERVER | mato-server / Ollama running | `photos/14-ollama-server.png` | [ ] |

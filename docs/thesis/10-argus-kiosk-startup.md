@@ -56,6 +56,8 @@ Edit `~/.config/labwc/autostart` and delete the block between:
 | ID | Shot |
 |----|------|
 | P-ARGUS | ARGUS fullscreen on Touch Display after reboot (no desktop icons visible under kiosk) |
+| P-EYE-BOOT | Eye awaken mid-animation on kiosk boot (see `11-boot-eye-animation.md`) |
+| P-EYE-CLOSE | Eye standby / sign-out close |
 | — | Optional: HA `:8123` on laptop only — “backend, not the operator UI” |
 
 ## Troubleshooting

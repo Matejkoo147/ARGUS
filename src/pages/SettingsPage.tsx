@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useCeremony } from "../components/CeremonyProvider";
 import { useHA } from "../context/HAContext";
 import { CAMERA_SLOT_NONE, getCameraDisplayLabel } from "../lib/cameras";
 import { maskToken } from "../lib/auth";
@@ -10,6 +11,7 @@ import { getDomain, getFriendlyName } from "../types";
 
 export function SettingsPage() {
   const navigate = useNavigate();
+  const { runShutdown, runPreview, busy } = useCeremony();
   const { config, connect, disconnect, status, refreshStates, entities, preferences, setDashboardCameras, updatePreferences, entityLocations } = useHA();
   const [url, setUrl] = useState(config?.url ?? defaultHaProxyUrl());
   const [token, setToken] = useState(config?.token ?? "");
@@ -311,18 +313,49 @@ export function SettingsPage() {
       </div>
 
       <div className="card" style={{ marginTop: "1rem" }}>
+        <div className="card-header"><i className="bi bi-eye" /> Boot ceremony</div>
+        <div className="card-body">
+          <p style={{ fontSize: "0.75rem", color: "var(--muted)", margin: "0 0 1rem" }}>
+            ARGUS opens its eye on every kiosk cold start and closes it on sign-out. Preview either sequence
+            without leaving Settings.
+          </p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.6rem" }}>
+            <button
+              type="button"
+              className="btn-cyber action"
+              disabled={busy}
+              onClick={() => runPreview("boot")}
+            >
+              PREVIEW AWAKEN
+            </button>
+            <button
+              type="button"
+              className="btn-cyber"
+              disabled={busy}
+              onClick={() => runPreview("shutdown")}
+            >
+              PREVIEW STANDBY
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: "1rem" }}>
         <div className="card-header"><i className="bi bi-box-arrow-left" /> Session</div>
         <div className="card-body">
           <p style={{ fontSize: "0.75rem", color: "var(--muted)", margin: "0 0 1rem" }}>
-            Sign out clears your Home Assistant token from this device. On phones, use this instead of the bottom bar.
+            Sign out plays the eye-close ceremony, then clears your Home Assistant token from this device.
           </p>
           <button
             type="button"
             className="btn-cyber stop"
+            disabled={busy}
             onClick={() => {
-              disconnect();
-              navigate("/");
-              window.location.reload();
+              runShutdown(() => {
+                disconnect();
+                navigate("/");
+                window.location.reload();
+              });
             }}
           >
             SIGN OUT

@@ -18,9 +18,10 @@
 - Documented teardown of ARGUS/HA on mato-server → **Ollama only** (`08-mato-server-ollama-only.md`).
 - HA Docker running on Pi (`homeassistant` Up :8123).
 - Added Chromium **labwc kiosk** scripts so ARGUS is the boot/startup screen; HA remains backend-only.
+- Designed & implemented **eye awaken / standby ceremony** (same logo geometry): open lids on load, close on sign-out; Settings preview; thesis guide `11-boot-eye-animation.md`.
 
 ## Next actions
 
 1. Finish ARGUS deploy on Pi (`.env`, `argus-update build`).
-2. Install kiosk: `./scripts/pi-install-kiosk.sh` → reboot → screenshot **P-ARGUS**.
+2. Install kiosk: `./scripts/pi-install-kiosk.sh` → reboot → screenshot **P-ARGUS** + **P-EYE-BOOT** / **P-EYE-CLOSE**.
 3. Voice TEST + Ollama from mato-server.

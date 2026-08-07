@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "./components/AppShell";
+import { CeremonyProvider } from "./components/CeremonyProvider";
 import { ConnectScreen } from "./components/ConnectScreen";
 import { HAProvider, useHA } from "./context/HAContext";
 import { AutomationsPage } from "./pages/AutomationsPage";
@@ -39,7 +40,9 @@ export default function App() {
   return (
     <HAProvider>
       <BrowserRouter>
-        <AppRoutes />
+        <CeremonyProvider>
+          <AppRoutes />
+        </CeremonyProvider>
       </BrowserRouter>
     </HAProvider>
   );

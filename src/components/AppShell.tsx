@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { ArgusLogo } from "./ArgusLogo";
+import { useCeremony } from "./CeremonyProvider";
 import { AlertsBell } from "./AlertsBell";
 import { useHA } from "../context/HAContext";
 import { pickWeatherSnapshot } from "../lib/homeSensors";
@@ -46,6 +47,7 @@ function NavMetricBtn({
 export function AppShell() {
   const { status, summary, config, entities, disconnect } = useHA();
   const navigate = useNavigate();
+  const { runShutdown } = useCeremony();
   const [clock, setClock] = useState(formatNavClock);
 
   const weather = useMemo(() => pickWeatherSnapshot(entities), [entities]);
@@ -108,9 +110,11 @@ export function AppShell() {
         : "Offline";
 
   const handleLogout = () => {
-    disconnect();
-    navigate("/");
-    window.location.reload();
+    runShutdown(() => {
+      disconnect();
+      navigate("/");
+      window.location.reload();
+    });
   };
 
   const openSettings = () => navigate("/settings");
