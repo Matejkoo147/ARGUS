@@ -52,18 +52,22 @@ sudo rm -f /usr/local/bin/ha-update
 docker ps -a --format '{{.Names}}'
 
 # Stop everything ARGUS / HA / whisper-related (safe if name missing)
-docker stop argus homeassistant whisper 2>/dev/null || true
 docker rm -f argus homeassistant whisper 2>/dev/null || true
 
-# If names differ (e.g. argus-argus-1), remove by filter:
-docker ps -a --filter name=argus --format '{{.ID}} {{.Names}}'
-docker ps -a --filter name=home --format '{{.ID}} {{.Names}}'
-docker ps -a --filter name=whisper --format '{{.ID}} {{.Names}}'
+# Compose project names on mato-server (seen in the wild):
+docker rm -f argus-argus-1 argus-whisper-1 2>/dev/null || true
 
-# Remove matching containers
+# Catch-all by name filter:
 docker ps -aq --filter name=argus | xargs -r docker rm -f
 docker ps -aq --filter name=homeassistant | xargs -r docker rm -f
 docker ps -aq --filter name=whisper | xargs -r docker rm -f
+
+# Optional: remove ARGUS image only
+docker rmi argus-home-security:latest 2>/dev/null || true
+docker network rm ha-argus 2>/dev/null || true
+
+# Confirm — should show NO argus-* lines (Odysseus/resell-radar stay)
+docker ps -a --format '{{.Names}}' | grep -i argus || echo 'ARGUS containers gone'
 ```
 
 ---
