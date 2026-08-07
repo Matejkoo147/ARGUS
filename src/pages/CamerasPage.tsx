@@ -1,14 +1,16 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { CameraFeed } from "../components/CameraFeed";
+import { DetailSheet } from "../components/DetailSheet";
 import { useHA } from "../context/HAContext";
 import { getCameraDisplayLabel } from "../lib/cameras";
-import { getDomain } from "../types";
+import { getDomain, type HAEntity } from "../types";
 
 export function CamerasPage() {
   const { entities, config, entityLocations } = useHA();
   const [searchParams, setSearchParams] = useSearchParams();
   const focusId = searchParams.get("focus");
+  const [focusCamera, setFocusCamera] = useState<HAEntity | null>(null);
 
   const cameras = entities.filter((e) => getDomain(e.entity_id) === "camera");
   const haUrl = config?.url ?? "";
@@ -16,6 +18,12 @@ export function CamerasPage() {
 
   useEffect(() => {
     if (!focusId) return;
+    const cam = cameras.find((c) => c.entity_id === focusId);
+    if (cam) {
+      setFocusCamera(cam);
+      setSearchParams({}, { replace: true });
+      return;
+    }
     const el = document.getElementById(`camera-feed-${focusId}`);
     if (!el) return;
     el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -25,13 +33,13 @@ export function CamerasPage() {
       setSearchParams({}, { replace: true });
     }, 4000);
     return () => clearTimeout(t);
-  }, [focusId, cameras.length, setSearchParams]);
+  }, [focusId, cameras, setSearchParams]);
 
   return (
     <>
       <div className="page-head">
         <h2><span className="accent">//</span> CAMERAS</h2>
-        <span className="sub">AI vision feeds · {cameras.length} online</span>
+        <span className="sub">AI vision feeds · {cameras.length} online · tap for fullscreen</span>
       </div>
 
       {cameras.length === 0 ? (
@@ -55,11 +63,36 @@ export function CamerasPage() {
                 token={token}
                 label={getCameraDisplayLabel(cam, entityLocations.areas, entityLocations.registryNames)}
                 slot={i % 2 === 0 ? 1 : 2}
+                onExpand={() => setFocusCamera(cam)}
               />
             </div>
           ))}
         </div>
       )}
+
+      <DetailSheet
+        open={Boolean(focusCamera)}
+        title={
+          focusCamera
+            ? getCameraDisplayLabel(focusCamera, entityLocations.areas, entityLocations.registryNames)
+            : "Camera"
+        }
+        subtitle="Live feed · tap Back to return"
+        icon="bi-camera-video-fill"
+        onBack={() => setFocusCamera(null)}
+        className="detail-sheet-body--camera"
+      >
+        {focusCamera && (
+          <CameraFeed
+            entity={focusCamera}
+            haUrl={haUrl}
+            token={token}
+            label="Fullscreen"
+            slot={1}
+            variant="fullscreen"
+          />
+        )}
+      </DetailSheet>
     </>
   );
 }

@@ -905,6 +905,24 @@ body.system-armed .argus-logo--glow,
   border-radius: 2px;
   min-height: 72px;
   justify-content: center;
+  color: inherit;
+  font: inherit;
+  width: 100%;
+  cursor: default;
+}
+.sensor-chip--tappable {
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.sensor-chip--tappable:hover,
+.sensor-chip--tappable:focus-visible {
+  border-color: rgba(0, 229, 255, 0.55);
+  box-shadow: 0 0 14px rgba(0, 229, 255, 0.12);
+  outline: none;
+}
+.sensor-chip--tappable:active {
+  background: rgba(0, 229, 255, 0.08);
 }
 .sensor-chip .bi { font-size: 1.15rem; color: var(--neon-cyan); opacity: 0.85; }
 .sensor-chip.alert { border-color: rgba(255, 43, 90, 0.45); background: rgba(255, 43, 90, 0.06); }
@@ -2964,5 +2982,316 @@ body.system-armed .argus-logo--glow,
   .argus-ceremony,
   .argus-ceremony * {
     animation: none !important;
+  }
+}
+
+/* —— Tablet / touch detail sheets (security hub drill-down) —— */
+.detail-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  background: #020408;
+  background: linear-gradient(180deg, #060c16 0%, #020408 40%);
+}
+
+.detail-sheet-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+  min-height: 52px;
+  padding:
+    max(0.45rem, env(safe-area-inset-top, 0px))
+    max(0.75rem, env(safe-area-inset-right, 0px))
+    0.45rem
+    max(0.55rem, env(safe-area-inset-left, 0px));
+  border-bottom: 1px solid var(--border-glow);
+  background: rgba(4, 8, 14, 0.96);
+}
+
+.detail-sheet-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  background: rgba(0, 229, 255, 0.08);
+  color: var(--neon-cyan);
+  font-family: Orbitron, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  touch-action: manipulation;
+  border-radius: 2px;
+}
+
+.detail-sheet-back:hover,
+.detail-sheet-back:focus-visible {
+  background: rgba(0, 229, 255, 0.16);
+  outline: none;
+}
+
+.detail-sheet-back .bi {
+  font-size: 1.15rem;
+}
+
+.detail-sheet-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.detail-sheet-heading > .bi {
+  font-size: 1.25rem;
+  color: var(--neon-cyan);
+  flex-shrink: 0;
+}
+
+.detail-sheet-titles {
+  min-width: 0;
+}
+
+.detail-sheet-titles h2 {
+  margin: 0;
+  font-family: Orbitron, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.detail-sheet-sub {
+  margin: 0.15rem 0 0;
+  font-size: 0.62rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.detail-sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding:
+    0.85rem
+    max(0.85rem, env(safe-area-inset-right, 0px))
+    max(0.85rem, env(safe-area-inset-bottom, 0px))
+    max(0.85rem, env(safe-area-inset-left, 0px));
+  -webkit-overflow-scrolling: touch;
+}
+
+.detail-sheet-body--camera {
+  display: flex;
+  flex-direction: column;
+  padding: 0.35rem;
+  overflow: hidden;
+}
+
+.detail-sheet-body--camera .camera-slot--fullscreen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: none;
+  background: #000;
+}
+
+.detail-sheet-body--camera .camera-slot--fullscreen::before,
+.detail-sheet-body--camera .camera-slot--fullscreen::after {
+  display: none;
+}
+
+.detail-sheet-body--camera .camera-feed-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+}
+
+.camera-feed--fullscreen {
+  width: 100%;
+  height: 100%;
+  max-height: calc(100dvh - 56px - env(safe-area-inset-top, 0px));
+  aspect-ratio: auto;
+  object-fit: contain;
+  border: none;
+}
+
+.camera-slot--tappable .camera-feed-body--tappable {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.camera-expand-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  background: rgba(2, 4, 8, 0.45);
+  color: var(--neon-cyan);
+  font-family: Orbitron, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+
+.camera-slot--tappable:hover .camera-expand-overlay,
+.camera-feed-body--tappable:focus-visible .camera-expand-overlay {
+  opacity: 1;
+}
+
+@media (pointer: coarse) {
+  .camera-expand-overlay {
+    opacity: 0.85;
+    background: linear-gradient(transparent 40%, rgba(2, 4, 8, 0.55));
+    justify-content: flex-end;
+    padding-bottom: 0.75rem;
+  }
+
+  .sensor-chip--tappable {
+    min-height: 84px;
+  }
+
+  .detail-sheet-back {
+    min-height: 48px;
+    padding: 0.55rem 1rem;
+  }
+}
+
+.cam-expand-hint {
+  color: var(--neon-cyan);
+  opacity: 0.75;
+  font-size: 0.85rem;
+}
+
+.sensor-detail {
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.sensor-detail-hero {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.1rem 1rem;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.35);
+  margin-bottom: 1rem;
+}
+
+.sensor-detail-hero.alert {
+  border-color: rgba(255, 43, 90, 0.45);
+  background: rgba(255, 43, 90, 0.08);
+}
+
+.sensor-detail-hero > .bi {
+  font-size: 2.4rem;
+  color: var(--neon-cyan);
+}
+
+.sensor-detail-hero.alert > .bi {
+  color: var(--red);
+}
+
+.sensor-detail-name {
+  font-family: Orbitron, sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.sensor-detail-value {
+  font-family: Orbitron, sans-serif;
+  font-size: 1.65rem;
+  font-weight: 700;
+  margin-top: 0.2rem;
+}
+
+.sensor-detail-status {
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-top: 0.35rem;
+}
+
+.sensor-detail-meta {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0 0 1rem;
+}
+
+.sensor-detail-meta > div {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr;
+  gap: 0.5rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid rgba(21, 34, 56, 0.85);
+  font-size: 0.78rem;
+}
+
+.sensor-detail-meta dt {
+  margin: 0;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.62rem;
+}
+
+.sensor-detail-meta dd {
+  margin: 0;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.sensor-detail-meta code {
+  font-size: 0.72rem;
+  color: var(--neon-cyan);
+}
+
+.sensor-detail-hint {
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.sensor-detail-hint.muted,
+.sensor-detail-meta .muted {
+  opacity: 0.75;
+}
+
+@media (min-width: 900px) and (max-height: 820px) {
+  .detail-sheet-bar {
+    min-height: 48px;
+  }
+
+  .camera-feed--fullscreen {
+    max-height: calc(100dvh - 48px);
+  }
+
+  .sensor-chip--tappable {
+    min-height: 76px;
   }
 }

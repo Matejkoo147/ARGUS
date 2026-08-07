@@ -1,22 +1,34 @@
 import { useMemo, useState } from "react";
 import { CameraFeed } from "../components/CameraFeed";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { DetailSheet } from "../components/DetailSheet";
+import { SensorDetailPanel } from "../components/SensorDetailPanel";
 import { ConfRing, SensorRow } from "../components/CyberWidgets";
 import { useHA } from "../context/HAContext";
-import { resolveDashboardCamera } from "../lib/cameras";
+import { getCameraDisplayLabel, resolveDashboardCamera } from "../lib/cameras";
 import { isLiveAlertCandidate } from "../lib/alerts";
 import { formatEntityState, isSecurityRelevant, sensorStrength } from "../lib/entities";
-import { ARM_ACTIONS, type ArmAction, groupHomeSensors, isBleTagEntity, isMotionEntity, isPerimeterEntity } from "../lib/homeSensors";
+import {
+  ARM_ACTIONS,
+  type ArmAction,
+  type HomeSensorItem,
+  groupHomeSensors,
+  isBleTagEntity,
+  isMotionEntity,
+  isPerimeterEntity,
+} from "../lib/homeSensors";
 import { resolveQuickControls } from "../lib/preferences";
-import { getDomain, getFriendlyName, isOnState } from "../types";
+import { getDomain, getFriendlyName, isOnState, type HAEntity } from "../types";
 
 function logTimestamp(): string {
   return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
 export function DashboardPage() {
-  const { summary, entities, config, callService, toggleEntity, preferences } = useHA();
+  const { summary, entities, config, callService, toggleEntity, preferences, entityLocations } = useHA();
   const [pendingArm, setPendingArm] = useState<ArmAction | null>(null);
+  const [focusCamera, setFocusCamera] = useState<HAEntity | null>(null);
+  const [focusSensor, setFocusSensor] = useState<HomeSensorItem | null>(null);
 
   const alarms = entities.filter((e) => getDomain(e.entity_id) === "alarm_control_panel");
   const alarm = alarms[0];
@@ -109,8 +121,22 @@ export function DashboardPage() {
       </div>
 
       <div className="grid-2 camera-row">
-        <CameraFeed entity={cam1} haUrl={haUrl} token={token} label="Primary" slot={1} />
-        <CameraFeed entity={cam2} haUrl={haUrl} token={token} label="Secondary" slot={2} />
+        <CameraFeed
+          entity={cam1}
+          haUrl={haUrl}
+          token={token}
+          label="Primary"
+          slot={1}
+          onExpand={cam1 ? () => setFocusCamera(cam1) : undefined}
+        />
+        <CameraFeed
+          entity={cam2}
+          haUrl={haUrl}
+          token={token}
+          label="Secondary"
+          slot={2}
+          onExpand={cam2 ? () => setFocusCamera(cam2) : undefined}
+        />
       </div>
 
       <div className="grid-4">
@@ -172,15 +198,17 @@ export function DashboardPage() {
                     <h3 className="sensor-group-title">{group.label}</h3>
                     <div className="sensor-chip-grid">
                       {group.items.map((item) => (
-                        <div
+                        <button
                           key={item.entity.entity_id}
-                          className={`sensor-chip${item.alert ? " alert" : ""}`}
-                          title={`${item.name}: ${item.value}`}
+                          type="button"
+                          className={`sensor-chip sensor-chip--tappable${item.alert ? " alert" : ""}`}
+                          title={`${item.name}: ${item.value} — tap for details`}
+                          onClick={() => setFocusSensor(item)}
                         >
                           <i className={`bi ${item.icon}`} />
                           <span className="sensor-chip-name">{item.name}</span>
                           <span className={`sensor-chip-value${item.alert ? " glow-red" : ""}`}>{item.value}</span>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   </section>
@@ -302,6 +330,40 @@ export function DashboardPage() {
           onCancel={() => setPendingArm(null)}
         />
       )}
+
+      <DetailSheet
+        open={Boolean(focusCamera)}
+        title={
+          focusCamera
+            ? getCameraDisplayLabel(focusCamera, entityLocations.areas, entityLocations.registryNames)
+            : "Camera"
+        }
+        subtitle="Live feed · tap Back to return"
+        icon="bi-camera-video-fill"
+        onBack={() => setFocusCamera(null)}
+        className="detail-sheet-body--camera"
+      >
+        {focusCamera && (
+          <CameraFeed
+            entity={focusCamera}
+            haUrl={haUrl}
+            token={token}
+            label="Fullscreen"
+            slot={1}
+            variant="fullscreen"
+          />
+        )}
+      </DetailSheet>
+
+      <DetailSheet
+        open={Boolean(focusSensor)}
+        title={focusSensor?.name ?? "Sensor"}
+        subtitle={focusSensor?.entity.entity_id}
+        icon={focusSensor?.icon ?? "bi-broadcast"}
+        onBack={() => setFocusSensor(null)}
+      >
+        {focusSensor && <SensorDetailPanel item={focusSensor} />}
+      </DetailSheet>
     </>
   );
 }

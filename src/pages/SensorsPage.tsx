@@ -1,9 +1,12 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { DetailSheet } from "../components/DetailSheet";
+import { SensorDetailPanel } from "../components/SensorDetailPanel";
 import { useHA } from "../context/HAContext";
-import { groupHomeSensors } from "../lib/homeSensors";
+import { groupHomeSensors, type HomeSensorItem } from "../lib/homeSensors";
 
 export function SensorsPage() {
   const { entities, summary } = useHA();
+  const [focusSensor, setFocusSensor] = useState<HomeSensorItem | null>(null);
 
   const groups = useMemo(() => groupHomeSensors(entities), [entities]);
   const totalSensors = groups.reduce((n, g) => n + g.items.length, 0);
@@ -46,16 +49,18 @@ export function SensorsPage() {
               <div className="card-body home-sensors-body">
                 <div className="sensor-chip-grid sensors-page-grid">
                   {group.items.map((item) => (
-                    <div
+                    <button
                       key={item.entity.entity_id}
-                      className={`sensor-chip sensor-chip-lg${item.alert ? " alert" : ""}`}
-                      title={`${item.entity.entity_id}\n${item.name}: ${item.value}`}
+                      type="button"
+                      className={`sensor-chip sensor-chip-lg sensor-chip--tappable${item.alert ? " alert" : ""}`}
+                      title={`${item.entity.entity_id}\n${item.name}: ${item.value} — tap for details`}
+                      onClick={() => setFocusSensor(item)}
                     >
                       <i className={`bi ${item.icon}`} />
                       <span className="sensor-chip-name">{item.name}</span>
                       <span className={`sensor-chip-value${item.alert ? " glow-red" : ""}`}>{item.value}</span>
                       <span className="sensor-chip-entity">{item.entity.entity_id}</span>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -63,6 +68,16 @@ export function SensorsPage() {
           ))}
         </>
       )}
+
+      <DetailSheet
+        open={Boolean(focusSensor)}
+        title={focusSensor?.name ?? "Sensor"}
+        subtitle={focusSensor?.entity.entity_id}
+        icon={focusSensor?.icon ?? "bi-broadcast"}
+        onBack={() => setFocusSensor(null)}
+      >
+        {focusSensor && <SensorDetailPanel item={focusSensor} />}
+      </DetailSheet>
     </>
   );
 }

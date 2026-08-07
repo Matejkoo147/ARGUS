@@ -10,6 +10,10 @@ interface CameraFeedProps {
   token: string;
   label: string;
   slot: 1 | 2;
+  /** When set, tapping the feed opens a detail / fullscreen view */
+  onExpand?: () => void;
+  /** Fullscreen layout inside DetailSheet */
+  variant?: "card" | "fullscreen";
 }
 
 type FeedMode = "stream" | "snapshot";
@@ -23,7 +27,15 @@ function initialStreamMethod(): StreamMethod {
   return prefersNativeMjpegImg() ? "img" : "fetch";
 }
 
-export function CameraFeed({ entity, haUrl, token, label, slot }: CameraFeedProps) {
+export function CameraFeed({
+  entity,
+  haUrl,
+  token,
+  label,
+  slot,
+  onExpand,
+  variant = "card",
+}: CameraFeedProps) {
   const { entityLocations } = useHA();
   const [mode, setMode] = useState<FeedMode>("stream");
   const [streamMethod, setStreamMethod] = useState<StreamMethod>(initialStreamMethod);
@@ -220,6 +232,8 @@ export function CameraFeed({ entity, haUrl, token, label, slot }: CameraFeedProp
   const modeLabel = mode === "stream" ? "STREAM" : "SNAP";
   const useImgStream = mode === "stream" && streamMethod === "img" && nativeStreamUrl;
   const imgSrc = useImgStream ? nativeStreamUrl : frameSrc;
+  const fullscreen = variant === "fullscreen";
+  const tappable = Boolean(onExpand) && !fullscreen;
 
   const onNativeStreamLoad = () => {
     clearNativeFailTimer();
@@ -238,16 +252,34 @@ export function CameraFeed({ entity, haUrl, token, label, slot }: CameraFeedProp
 
   const showStreamLoading = status === "loading" && mode === "stream" && streamMethod === "fetch";
 
+  const openExpand = () => {
+    onExpand?.();
+  };
+
   return (
-    <div className="card camera-slot">
-      <div className="card-header">
-        <i className="bi bi-camera-video-fill" /> {displayName}
-        <span className="camera-feed-badges">
-          <span className="cam-mode">{modeLabel}</span>
-          <span className={`cam-live ${live ? "on" : ""}`}>LIVE</span>
-        </span>
-      </div>
-      <div className="card-body camera-feed-body">
+    <div className={`card camera-slot${tappable ? " camera-slot--tappable" : ""}${fullscreen ? " camera-slot--fullscreen" : ""}`}>
+      {!fullscreen && (
+        <div className="card-header">
+          <i className="bi bi-camera-video-fill" /> {displayName}
+          <span className="camera-feed-badges">
+            <span className="cam-mode">{modeLabel}</span>
+            <span className={`cam-live ${live ? "on" : ""}`}>LIVE</span>
+            {tappable && (
+              <span className="cam-expand-hint" title="Tap for fullscreen">
+                <i className="bi bi-arrows-fullscreen" />
+              </span>
+            )}
+          </span>
+        </div>
+      )}
+      <div
+        className={`card-body camera-feed-body${tappable ? " camera-feed-body--tappable" : ""}`}
+        role={tappable ? "button" : undefined}
+        tabIndex={tappable ? 0 : undefined}
+        onClick={tappable ? openExpand : undefined}
+        onKeyDown={tappable ? (e) => e.key === "Enter" && openExpand() : undefined}
+        title={tappable ? "Tap to open fullscreen" : undefined}
+      >
         {status === "error" ? (
           <div className="camera-slot-body">
             <div className="camera-placeholder">
@@ -266,12 +298,19 @@ export function CameraFeed({ entity, haUrl, token, label, slot }: CameraFeedProp
             <img
               ref={imgRef}
               key={useImgStream ? `${entity.entity_id}-img-${streamAttempt}` : frameSrc}
-              className="camera-feed"
+              className={`camera-feed${fullscreen ? " camera-feed--fullscreen" : ""}`}
               src={imgSrc}
               alt={displayName}
               onLoad={useImgStream ? onNativeStreamLoad : undefined}
               onError={useImgStream ? onNativeStreamError : undefined}
+              draggable={false}
             />
+            {tappable && (
+              <div className="camera-expand-overlay" aria-hidden>
+                <i className="bi bi-arrows-fullscreen" />
+                <span>Fullscreen</span>
+              </div>
+            )}
           </>
         ) : (
           <div className="camera-feed-loading">
