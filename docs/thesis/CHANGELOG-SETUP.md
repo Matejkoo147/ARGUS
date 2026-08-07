@@ -20,9 +20,10 @@
 - Added Chromium **labwc kiosk** scripts so ARGUS is the boot/startup screen; HA remains backend-only.
 - Designed & implemented **eye awaken / standby ceremony** (same logo geometry): open lids on load, close on sign-out; Settings preview; thesis guide `11-boot-eye-animation.md`.
 - Gated auto-awaken to **Pi kiosk only** (`?kiosk=1` from `pi-argus-kiosk.sh`) so laptop refreshes stay quiet; Pi reboot still shows the eye.
+- **v1.4.0:** Touch security-hub drill-down — tap Home/Cameras feed → fullscreen + Back; tap sensor chips → detail (door/temp/etc.). Phone/web unchanged aside from the same tap-to-detail.
 
 ## Next actions
 
-1. Finish ARGUS deploy on Pi (`.env`, `argus-update build`).
-2. Install kiosk: `./scripts/pi-install-kiosk.sh` → reboot → screenshot **P-ARGUS** + **P-EYE-BOOT** / **P-EYE-CLOSE**.
+1. On Pi: `cd ~/apps/argus && git pull && argus-update build` (or first clone + kiosk).
+2. Screenshot **P-ARGUS** with camera fullscreen + sensor detail.
 3. Voice TEST + Ollama from mato-server.
