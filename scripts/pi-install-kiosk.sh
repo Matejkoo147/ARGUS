@@ -12,7 +12,7 @@ SRC="${ROOT}/scripts/pi-argus-kiosk.sh"
 DEST="${HOME}/bin/pi-argus-kiosk.sh"
 AUTOSTART_DIR="${HOME}/.config/labwc"
 AUTOSTART="${AUTOSTART_DIR}/autostart"
-URL="${ARGUS_KIOSK_URL:-http://127.0.0.1:9080}"
+URL="${ARGUS_KIOSK_URL:-http://127.0.0.1:9080/?kiosk=1}"
 
 if [[ ! -f "$SRC" ]]; then
   echo "Missing $SRC — run from a cloned ARGUS repo."

@@ -19,6 +19,7 @@
 - HA Docker running on Pi (`homeassistant` Up :8123).
 - Added Chromium **labwc kiosk** scripts so ARGUS is the boot/startup screen; HA remains backend-only.
 - Designed & implemented **eye awaken / standby ceremony** (same logo geometry): open lids on load, close on sign-out; Settings preview; thesis guide `11-boot-eye-animation.md`.
+- Gated auto-awaken to **Pi kiosk only** (`?kiosk=1` from `pi-argus-kiosk.sh`) so laptop refreshes stay quiet; Pi reboot still shows the eye.
 
 ## Next actions
 

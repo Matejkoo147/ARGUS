@@ -3,7 +3,15 @@
 # Used from ~/.config/labwc/autostart on Raspberry Pi OS (Bookworm+ / labwc).
 set -euo pipefail
 
-URL="${ARGUS_KIOSK_URL:-http://127.0.0.1:9080}"
+# ?kiosk=1 enables the eye awaken ceremony on this Chromium session only.
+RAW_URL="${ARGUS_KIOSK_URL:-http://127.0.0.1:9080}"
+if [[ "$RAW_URL" == *"kiosk="* ]]; then
+  URL="$RAW_URL"
+elif [[ "$RAW_URL" == *"?"* ]]; then
+  URL="${RAW_URL}&kiosk=1"
+else
+  URL="${RAW_URL}?kiosk=1"
+fi
 LOG="${HOME}/.cache/argus-kiosk.log"
 mkdir -p "$(dirname "$LOG")"
 

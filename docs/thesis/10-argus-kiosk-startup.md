@@ -24,6 +24,7 @@ This:
 - Tries to set boot to desktop auto-login (`raspi-config` B4)  
 - Waits for ARGUS HTTP before opening Chromium (so Docker can finish starting)  
 - Uses `--kiosk` + `--password-store=basic` (avoids keyring popup)
+- Opens `http://127.0.0.1:9080/?kiosk=1` so ARGUS plays the **eye awaken** ceremony on each Pi boot (see [`11-boot-eye-animation.md`](11-boot-eye-animation.md))
 
 ## Manual check without reboot
 

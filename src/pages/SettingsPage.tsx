@@ -11,7 +11,7 @@ import { getDomain, getFriendlyName } from "../types";
 
 export function SettingsPage() {
   const navigate = useNavigate();
-  const { runShutdown, runPreview, busy } = useCeremony();
+  const { runShutdown, runPreview, busy, kiosk } = useCeremony();
   const { config, connect, disconnect, status, refreshStates, entities, preferences, setDashboardCameras, updatePreferences, entityLocations } = useHA();
   const [url, setUrl] = useState(config?.url ?? defaultHaProxyUrl());
   const [token, setToken] = useState(config?.token ?? "");
@@ -316,8 +316,9 @@ export function SettingsPage() {
         <div className="card-header"><i className="bi bi-eye" /> Boot ceremony</div>
         <div className="card-body">
           <p style={{ fontSize: "0.75rem", color: "var(--muted)", margin: "0 0 1rem" }}>
-            ARGUS opens its eye on every kiosk cold start and closes it on sign-out. Preview either sequence
-            without leaving Settings.
+            Auto eye-open runs only on the Pi Chromium kiosk (<code>?kiosk=1</code>) — e.g. after a reboot.
+            Laptop browsers skip it. Sign-out still closes the eye. Preview either sequence here.
+            {kiosk ? " This session is kiosk mode." : " This session is not kiosk mode."}
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "0.6rem" }}>
             <button

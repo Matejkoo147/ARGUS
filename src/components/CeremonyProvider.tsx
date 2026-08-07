@@ -13,6 +13,7 @@ import {
   SHUTDOWN_MS,
   type CeremonyMode,
 } from "./ArgusEyeCeremony";
+import { isKioskMode } from "../lib/kiosk";
 
 type CeremonyContextValue = {
   /** Play eye-close, then run `after` (e.g. logout). */
@@ -20,6 +21,8 @@ type CeremonyContextValue = {
   /** Replay boot or shutdown for Settings preview (does not navigate). */
   runPreview: (mode: CeremonyMode) => void;
   busy: boolean;
+  /** Pi Chromium kiosk session (auto-awaken on load). */
+  kiosk: boolean;
 };
 
 const CeremonyContext = createContext<CeremonyContextValue | null>(null);
@@ -28,9 +31,16 @@ function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
+/** Auto eye-open only on Pi kiosk cold start — not every laptop refresh. */
+function shouldAutoBoot(): boolean {
+  if (prefersReducedMotion()) return false;
+  return isKioskMode();
+}
+
 export function CeremonyProvider({ children }: { children: ReactNode }) {
+  const [kiosk] = useState(() => isKioskMode());
   const [mode, setMode] = useState<CeremonyMode | null>(() =>
-    prefersReducedMotion() ? null : "boot"
+    shouldAutoBoot() ? "boot" : null
   );
   const afterRef = useRef<(() => void) | null>(null);
   const busy = mode !== null;
@@ -58,8 +68,8 @@ export function CeremonyProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ runShutdown, runPreview, busy }),
-    [runShutdown, runPreview, busy]
+    () => ({ runShutdown, runPreview, busy, kiosk }),
+    [runShutdown, runPreview, busy, kiosk]
   );
 
   return (
