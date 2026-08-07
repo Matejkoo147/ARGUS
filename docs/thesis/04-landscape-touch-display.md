@@ -9,44 +9,29 @@
 | ARGUS / thesis UI | **1280 × 720** landscape |
 | Connection | DSI ribbon to Pi 5 |
 
-ARGUS CSS already has a kiosk-oriented layout for `(min-width: 900px) and (max-height: 820px)`. The **panel must be rotated in the OS** so the browser reports ~1280×720, not portrait stacking.
+ARGUS CSS already has a kiosk layout for `(min-width: 900px) and (max-height: 820px)`. Rotate in the OS so the browser reports landscape.
 
-## Raspberry Pi OS (Option B) — approach
+## Rotate (Bookworm desktop)
 
-Exact commands depend on Bookworm (labwc / Wayland) vs older X11. Plan:
+1. **Preferences → Screen Configuration**  
+2. Right-click DSI / Touch Display → **Orientation** → **Right** or **Left**  
+3. Apply; confirm touch still lines up  
+4. Reboot once to confirm it persists  
 
-1. Confirm display is detected: `kmsprint` / Screen Configuration.
-2. Rotate **90° or 270°** so the physical stand is landscape and touch axes match.
-3. Persist rotation across reboot (labwc config or `cmdline` / overlay — record the final file contents here).
-4. Calibrate / verify touch: taps match icons after rotation (critical).
-5. Chromium kiosk:
-   ```bash
-   chromium-browser --kiosk --noerrdialogs --disable-infobars \
-     --app=http://127.0.0.1:9080
-   ```
-   Autostart via `wayfire.ini` / labwc autostart / systemd user service.
+## ARGUS as startup screen
 
-### Placeholder — final working config
+After ARGUS is running on `:9080`, install the kiosk:
 
-```
-# Paste the working rotation + kiosk unit here after it works
-```
+→ **[`10-argus-kiosk-startup.md`](10-argus-kiosk-startup.md)**  
+→ scripts: `scripts/pi-install-kiosk.sh`, `scripts/pi-argus-kiosk.sh`
 
-## HAOS (Option A)
+HA (`:8123`) is **not** shown on the panel — only used as backend / setup from a laptop if needed.
 
-If you insist on HAOS: landscape + fullscreen ARGUS on DSI is **non-trivial**. Options researched for the thesis appendix:
-
-- Custom kiosk add-on (community, may break on updates)
-- External browser device (breaks “one Pi” story)
-
-Document whichever path you actually ran; do not claim HAOS kiosk without screenshots.
-
-## Verification for thesis
+## Verification
 
 | Check | Pass |
 |-------|------|
-| `window.innerWidth` ≈ 1280 in browser console | [ ] |
-| `window.innerHeight` ≈ 720 | [ ] |
-| ARGUS bottom nav **not** used (left sidebar visible) | [ ] |
-| Touch targets align with icons | [ ] |
-| Cooler not blocked by display mount | [ ] |
+| Landscape after reboot | [ ] |
+| ARGUS kiosk on boot | [ ] |
+| Touch hits correct controls | [ ] |
+| HA reachable on `:8123` from laptop only | [ ] |

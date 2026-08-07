@@ -129,25 +129,5 @@ docker network create ha-argus 2>/dev/null || true
 argus-update build
 ```
 
-Open on the Pi: `http://127.0.0.1:9080`  
-Login with HA URL `http://127.0.0.1:9080/api/ha` + token.
-
-### Screenshots
-| ID | What |
-|----|------|
-| P-ARGUS | ARGUS Home in **landscape** on the touch panel |
-| P-VOICE | Voice → **TEST** → reply with model + number |
-| P-SERVER | mato-server Ollama running / `ollama list` (from server) |
-| P-TOPO | Simple diagram: Pi (HA+ARGUS) ↔ Ethernet ↔ mato-server (Ollama) |
-
----
-
-## Suggested order tonight
-
-1. Catch-up hardware photos (5–10 min)  
-2. Landscape + verify touch + screenshots  
-3. Docker install + reboot  
-4. If energy left: HA container + onboarding (P-HA)  
-5. ARGUS can be next session if it’s late  
-
-Stop after any step and message what you see (especially landscape / Docker errors).
+6. Install kiosk so ARGUS is the boot screen — see `10-argus-kiosk-startup.md` (HA stays backend-only).
+7. Screenshot **P-ARGUS** after reboot; Voice TEST (**P-VOICE**).

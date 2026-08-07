@@ -16,9 +16,11 @@
 - Active Cooler installed; Touch Display 2 on; touch working; Ethernet working.
 - Raspberry Pi OS on microSD; apt upgraded.
 - Documented teardown of ARGUS/HA on mato-server → **Ollama only** (`08-mato-server-ollama-only.md`).
+- HA Docker running on Pi (`homeassistant` Up :8123).
+- Added Chromium **labwc kiosk** scripts so ARGUS is the boot/startup screen; HA remains backend-only.
 
 ## Next actions
 
-1. Catch-up thesis photos → landscape → Docker on Pi.
-2. HA + ARGUS on Pi.
-3. On mato-server: backup HA if needed, then stop/remove ARGUS+HA; keep Ollama reachable from Pi LAN.
+1. Finish ARGUS deploy on Pi (`.env`, `argus-update build`).
+2. Install kiosk: `./scripts/pi-install-kiosk.sh` → reboot → screenshot **P-ARGUS**.
+3. Voice TEST + Ollama from mato-server.

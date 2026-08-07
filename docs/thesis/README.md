@@ -46,6 +46,7 @@ Detailed cooler + Touch Display 2 wiring: [`01-bom-and-connections.md`](01-bom-a
 | [06-photo-checklist.md](06-photo-checklist.md) | Photos for PDF |
 | [07-session-after-os.md](07-session-after-os.md) | What to do after Pi OS + when to screenshot |
 | [08-mato-server-ollama-only.md](08-mato-server-ollama-only.md) | Remove ARGUS/HA from home server; keep Ollama |
+| [10-argus-kiosk-startup.md](10-argus-kiosk-startup.md) | ARGUS fullscreen on Pi boot (HA backend only) |
 | [CHANGELOG-SETUP.md](CHANGELOG-SETUP.md) | Chronological log |
 
 ## Previous setup (migration chapter)
