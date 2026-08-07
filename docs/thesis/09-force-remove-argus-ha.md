@@ -114,13 +114,34 @@ systemctl is-active ollama
 
 ---
 
-## If they still come back
+## If `~/apps/argus/tls` keeps coming back
 
-Something else is starting them (another compose project, Portainer, cron):
+Docker bind-mounts recreate the **host** directory when the container starts.  
+Order must be: **remove container → then delete folder**.
 
 ```bash
-sudo grep -Rns 'argus\|homeassistant\|9080\|8123' /etc/systemd/system /etc/cron* ~/apps 2>/dev/null | head -50
-docker inspect $(docker ps -aq) --format '{{.Name}} restart={{.HostConfig.RestartPolicy.Name}}' 2>/dev/null
+docker rm -f argus-argus-1 argus-whisper-1
+docker ps -a --format '{{.Names}}' | grep -i argus || echo 'no argus containers'
+
+sudo systemctl disable --now argus 2>/dev/null || true
+sudo rm -f /etc/systemd/system/argus.service /usr/local/bin/argus-update
+sudo systemctl daemon-reload
+
+# Find anything else that might start ARGUS
+sudo grep -Rns 'apps/argus\|argus-update\|argus-argus' /etc/systemd/system /etc/cron* 2>/dev/null | head -40
+
+rm -rf ~/apps/argus
+ls ~/apps
+
+# Wait a few seconds — if tls reappears, a container came back
+sleep 5
+ls ~/apps/argus 2>/dev/null || echo 'folder stays gone'
+docker ps -a --format '{{.Names}}' | grep -i argus || echo 'still no argus'
 ```
 
-Send that output and we finish the cleanup.
+If the folder returns again, paste:
+
+```bash
+docker ps -a --filter name=argus
+systemctl list-units --all | grep -i argus
+```
